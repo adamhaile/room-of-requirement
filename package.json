@@ -1,0 +1,31 @@
+{
+  "name": "room-of-requirement",
+  "version": "0.0.1",
+  "description": "A functional dependency injector for ES6+",
+  "main": "room-of-requirement.js",
+  "scripts": {
+    "test": "jasmine"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/curveship/room-of-requirement.git"
+  },
+  "keywords": [
+    "javascript",
+    "dependency",
+    "injetion",
+    "async",
+    "promise",
+    "ES6"
+  ],
+  "author": "Adam Haile",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/curveship/room-of-requirement/issues"
+  },
+  "homepage": "https://github.com/curveship/room-of-requirement#readme",
+  "devDependencies": {
+    "bluebird": "^3.4.1",
+    "jasmine": "^2.4.1"
+  }
+}
