@@ -14,7 +14,7 @@ interface Entrypoint {
     <T>(prod : Production<T>) : T
 }
 
-var RoomOfRequirement = (...namespaces : Namespace[]) => entrypoint(flatten(namespaces)),
+var RoomOfRequirement = (...namespaces : Namespace[]) => entrypoint(chain(namespaces)),
     entrypoint = (namespace : Namespace) : Entrypoint => <T>(prod : Production<T>) => resolve(prod, namespace, {} as Dependencies),
     resolve = (prod : Production<any>, namespace : Namespace, cache : Dependencies) => {
         var deps = {} as Dependencies,
@@ -29,9 +29,9 @@ var RoomOfRequirement = (...namespaces : Namespace[]) => entrypoint(flatten(name
                     deps[name] = cache[name] = (name in cache ? cache[name] : resolve(prod, namespace, cache)) :
                 injector(prod, cache[name] = cache[name] || {}, deps[name] = deps[name] || {});
         } }),
-    flatten = (namespaces : Namespace[]) => {
-        for (var i = 1; i < namespaces.length; i++)
-            namespaces[i]['__proto__'] = namespaces[i - 1];
+    chain = (namespaces : Namespace[]) => {
+        for (var i = 0; i < namespaces.length; i++)
+            namespaces[i]['__proto__'] = i ? namespaces[i - 1] : Object.create(null);
         return namespaces[i - 1];
     },
     missing : any = (name : string) => { throw new Error("missing dependency: " + name); };
