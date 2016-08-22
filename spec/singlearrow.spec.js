@@ -69,4 +69,26 @@ describe("a single arrow production", function () {
 
         accio(({foo:{bar}}) => expect(bar).toEqual(2));
     });
+
+    it("can have deeply nested requirements", function () {
+        var accio = RoomOfRequirement({
+            foo: {
+                bar: {
+                    bleck: {
+                        zorp: () => 2
+                    }
+                }
+            }
+        });
+
+        accio(({foo:{bar:{bleck:{zorp}}}}) => expect(zorp).toEqual(2));
+    });
+
+    it("does not pick up prototype properties", function () {
+        var accio = RoomOfRequirement({});
+
+        expect(() => 
+            accio(({toString}) => 1)
+        ).toThrowError(/toString/);
+    });
 })

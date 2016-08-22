@@ -10,4 +10,16 @@ describe("multiple namespaces", function () {
 
         accio(({foo}) => expect(foo).toEqual(2));
     });
+
+    it("can see earlier rules if they're the latest", function () {
+        var accio = RoomOfRequirement({
+            foo: () => 1,
+        }, {
+            foo: () => 2
+        }, {
+            bar: () => 3
+        });
+
+        accio(({foo}) => expect(foo).toEqual(2));
+    });
 })

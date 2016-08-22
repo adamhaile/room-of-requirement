@@ -30,11 +30,9 @@ var RoomOfRequirement = (...namespaces : Namespace[]) => entrypoint(flatten(name
                 injector(prod, cache[name] = cache[name] || {}, deps[name] = deps[name] || {});
         } }),
     flatten = (namespaces : Namespace[]) => {
-        let ns = {} as Namespace;
-        for (let _ns of namespaces)
-            for (let name in _ns)
-                ns[name] = _ns[name];
-        return ns;
+        for (var i = 1; i < namespaces.length; i++)
+            namespaces[i]['__proto__'] = namespaces[i - 1];
+        return namespaces[i - 1];
     },
     missing : any = (name : string) => { throw new Error("missing dependency: " + name); };
 

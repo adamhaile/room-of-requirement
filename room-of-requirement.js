@@ -17,11 +17,9 @@
                     deps[name] = cache[name] = (name in cache ? cache[name] : resolve(prod, namespace, cache)) :
                     injector(prod, cache[name] = cache[name] || {}, deps[name] = deps[name] || {});
         } }), flatten = (namespaces) => {
-        let ns = {};
-        for (let _ns of namespaces)
-            for (let name in _ns)
-                ns[name] = _ns[name];
-        return ns;
+        for (var i = 1; i < namespaces.length; i++)
+            namespaces[i]['__proto__'] = namespaces[i - 1];
+        return namespaces[i - 1];
     }, missing = (name) => { throw new Error("missing dependency: " + name); };
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.default = RoomOfRequirement;
