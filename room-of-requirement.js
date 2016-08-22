@@ -7,10 +7,22 @@
     }
 })(function (require, exports) {
     "use strict";
-    var RoomOfRequirement = (...namespaces) => entrypoint(flatten(namespaces)), entrypoint = (namespace) => (prod) => resolver(namespace)(prod), resolver = (namespace) => {
-        var resolutions = {}, lookup = (name) => resolutions[name]
-            || (resolutions[name] = resolver(namespace[name] || missing(name))), injector = new Proxy({}, { get: (_, name) => lookup(name) }), resolver = (prod) => prod(injector);
-        return resolver;
+    var RoomOfRequirement = (...namespaces) => entrypoint(flatten(namespaces)), entrypoint = (namespace) => (prod) => resolver(namespace, {})(prod), resolver = (namespace, resolutions) => {
+        var lookup = (name) => {
+            var prod = namespace[name];
+            return !prod ? missing(name) :
+                prod instanceof Function ?
+                    name in resolutions ? resolutions[name] :
+                        resolutions[name] = resolve(prod) :
+                    null; // TODO recursive injections
+        }, resolve = (prod) => {
+            var dependencies = {}, injector = new Proxy({}, { get: (_, name) => dependencies[name] = lookup(name) }), result = prod(injector);
+            return result;
+        };
+        return resolve;
+    }, multi = (obj, resolver) => {
+        for (var name in obj)
+            resolver(obj[name]);
     }, flatten = (namespaces) => {
         let ns = {};
         for (let _ns of namespaces)

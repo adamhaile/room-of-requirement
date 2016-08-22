@@ -59,5 +59,15 @@ describe("a single arrow production", function () {
         expect(() => 
             accio(({bar}) => bar)
         ).toThrowError(/bar/);
-    })
+    });
+
+    it("can have nested requirements", function () {
+        var accio = RoomOfRequirement({
+            foo: {
+                bar: () => 2
+            }
+        });
+
+        accio(({foo:{bar}}) => expect(bar).toEqual(2));
+    });
 })
