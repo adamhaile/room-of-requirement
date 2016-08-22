@@ -1,5 +1,4 @@
-var RoomOfRequirement = require('../room-of-requirement').default,
-    Promise = require('bluebird');
+var RoomOfRequirement = require('../room-of-requirement').default;
 
 describe("a single arrow production", function () {
     it("returns the expected value", function () {
