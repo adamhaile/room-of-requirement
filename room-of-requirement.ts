@@ -16,16 +16,18 @@ interface Entrypoint {
 
 var RoomOfRequirement = (...namespaces : Namespace[]) => entrypoint(flatten(namespaces)),
     entrypoint = (namespace : Namespace) : Entrypoint => <T>(prod : Production<T>) => resolve(prod, namespace, {} as Dependencies),
-    resolve = (prod : Production<any>, namespace : Namespace, cache : Dependencies) =>
-        prod(injector(namespace, cache, {})),
+    resolve = (prod : Production<any>, namespace : Namespace, cache : Dependencies) => {
+        var deps = {} as Dependencies,
+            result = prod(injector(namespace, cache, deps));
+        return result;
+    },
     injector = (namespace : Namespace, cache : Dependencies, deps : Dependencies) : any =>
         new Proxy({}, { get : (_, name) => {
             var prod = namespace[name];
-            return !prod                 ? missing(name) :
+            return !prod ? missing(name) :
                 prod instanceof Function ? 
-                    name in cache  ? cache[name] :  
-                    cache[name] = resolve(prod, namespace, cache) :
-                injector(prod, cache[name] = cache[name] || {}, deps[name] = deps[name] || {}); // TODO recursive injections
+                    deps[name] = cache[name] = (name in cache ? cache[name] : resolve(prod, namespace, cache)) :
+                injector(prod, cache[name] = cache[name] || {}, deps[name] = deps[name] || {});
         } }),
     flatten = (namespaces : Namespace[]) => {
         let ns = {} as Namespace;

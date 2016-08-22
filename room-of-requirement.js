@@ -7,13 +7,15 @@
     }
 })(function (require, exports) {
     "use strict";
-    var RoomOfRequirement = (...namespaces) => entrypoint(flatten(namespaces)), entrypoint = (namespace) => (prod) => resolve(prod, namespace, {}), resolve = (prod, namespace, cache) => prod(injector(namespace, cache, {})), injector = (namespace, cache, deps) => new Proxy({}, { get: (_, name) => {
+    var RoomOfRequirement = (...namespaces) => entrypoint(flatten(namespaces)), entrypoint = (namespace) => (prod) => resolve(prod, namespace, {}), resolve = (prod, namespace, cache) => {
+        var deps = {}, result = prod(injector(namespace, cache, deps));
+        return result;
+    }, injector = (namespace, cache, deps) => new Proxy({}, { get: (_, name) => {
             var prod = namespace[name];
             return !prod ? missing(name) :
                 prod instanceof Function ?
-                    name in cache ? cache[name] :
-                        cache[name] = resolve(prod, namespace, cache) :
-                    injector(prod, cache[name] = cache[name] || {}, deps[name] = deps[name] || {}); // TODO recursive injections
+                    deps[name] = cache[name] = (name in cache ? cache[name] : resolve(prod, namespace, cache)) :
+                    injector(prod, cache[name] = cache[name] || {}, deps[name] = deps[name] || {});
         } }), flatten = (namespaces) => {
         let ns = {};
         for (let _ns of namespaces)
