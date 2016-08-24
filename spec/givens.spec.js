@@ -2,14 +2,12 @@ var RoomOfRequirement = require('../room-of-requirement').default;
 
 describe("givens", function () {
     it("extends dependency network with new values", function () {
-        var deps = RoomOfRequirement({
-            foo: null
-        });
+        var deps = RoomOfRequirement({ });
 
         expect(deps({foo: 1}).foo).toEqual(1);
     });
 
-    it("cause an exception when requested before they're supplied", function () {
+    it("can be pre-declared with null in the namespace", function () {
         var deps = RoomOfRequirement({
             foo: null
         });
@@ -19,13 +17,13 @@ describe("givens", function () {
         ).toThrowError(/given/);
     });
 
-    it("cause an exception when supplied for a non-null target", function () {
+    it("can be supplied for sub-namespaces too", function () {
         var deps = RoomOfRequirement({
-            foo: () => 1
+            foo: {
+                bar: () => 1
+            }
         });
 
-        expect(() =>
-            deps({foo : 2})
-        ).toThrowError(/given/);
-    });
+        expect(deps.foo({bar: 2}).bar).toEqual(2);
+    })
 });

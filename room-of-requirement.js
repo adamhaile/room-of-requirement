@@ -21,20 +21,7 @@
                         prod === null ? errorMissingGiven(name) :
                             !prod ? errorMissingRule(name) :
                                 errorBadProd(prod));
-        } }), givens = (ns, cache) => (givens) => injector(ns, applyGivens(ns, NS.overlay(cache), givens), {}), applyGivens = (ns, cache, givens) => {
-        if (!ns)
-            errorNoSuchGiven(name);
-        for (let name of Object.keys(givens)) {
-            let val = givens[name];
-            if (isPlainObj(val))
-                applyGivens(ns[name], NS.sub(cache, name), val);
-            else if (ns[name] === null)
-                cache[name] = val;
-            else
-                errorNotGivenSite(name);
-        }
-        return ns;
-    }, init = (nss) => nss.reduce((ns, o) => NS.extend(ns, o), new NS());
+        } }), givens = (ns, cache) => (givens) => injector(ns, NS.extend(NS.overlay(cache), givens), {}), init = (nss) => nss.reduce((ns, o) => NS.extend(ns, o), new NS());
     class NS {
     }
     NS.overlay = (ns) => Object.create(ns);

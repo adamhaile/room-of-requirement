@@ -27,17 +27,7 @@ var RoomOfRequirement = (...namespaces : NS[]) => injector(init(namespaces), new
                 errorBadProd(prod)
             );
         } }),
-    givens = (ns : NS, cache : NS) => (givens : any) => injector(ns, applyGivens(ns, NS.overlay(cache), givens), {}),
-    applyGivens = (ns : NS, cache : NS, givens : any) => {
-        if (!ns) errorNoSuchGiven(name);
-        for (let name of Object.keys(givens)) {
-            let val = givens[name];
-            if (isPlainObj(val)) applyGivens(ns[name], NS.sub(cache, name), val);
-            else if (ns[name] === null) cache[name] = val;
-            else errorNotGivenSite(name);
-        }
-        return ns;
-    },
+    givens = (ns : NS, cache : NS) => (givens : any) => injector(ns, NS.extend(NS.overlay(cache), givens), {}),
     init = (nss : NS[]) => nss.reduce((ns, o) => NS.extend(ns, o), new NS());
 
 interface NS { [name : string] : NS | any }
