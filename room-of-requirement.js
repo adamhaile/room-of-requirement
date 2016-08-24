@@ -10,21 +10,38 @@
     var RoomOfRequirement = (...namespaces) => injector(init(namespaces), new NS(), {}), resolve = (prod, ns, cache) => {
         var deps = {}, result = prod(injector(ns, cache, deps));
         return result;
-    }, injector = (ns, cache, deps) => new Proxy({}, { get: (_, name) => {
+    }, injector = (ns, cache, deps) => new Proxy(givens(ns, cache), { get: (_, name) => {
             var prod = ns[name];
-            return (prod instanceof NS ?
-                injector(prod, NS.sub(cache, name.toString()), deps[name] = deps[name] || {}) :
-                prod instanceof Function ?
-                    (deps[name] = true, cache[name] = (name in cache ? cache[name] : resolve(prod, ns, cache))) :
-                    !prod ? errorMissingRule(name) :
-                        errorBadProd(prod));
-        } }), init = (nss) => nss.reduce((ns, o) => NS.extend(ns, o), new NS());
+            return (name in cache && !(cache[name] instanceof NS) ?
+                (deps[name] = true, cache[name]) :
+                prod instanceof NS ?
+                    injector(prod, NS.sub(cache, name.toString()), deps[name] = deps[name] || {}) :
+                    prod instanceof Function ?
+                        (deps[name] = true, cache[name] = resolve(prod, ns, cache)) :
+                        prod === null ? errorMissingGiven(name) :
+                            !prod ? errorMissingRule(name) :
+                                errorBadProd(prod));
+        } }), givens = (ns, cache) => (givens) => injector(ns, applyGivens(ns, NS.overlay(cache), givens), {}), applyGivens = (ns, cache, givens) => {
+        if (!ns)
+            errorNoSuchGiven(name);
+        for (let name of Object.keys(givens)) {
+            let val = givens[name];
+            if (isPlainObj(val))
+                applyGivens(ns[name], NS.sub(cache, name), val);
+            else if (ns[name] === null)
+                cache[name] = val;
+            else
+                errorNotGivenSite(name);
+        }
+        return ns;
+    }, init = (nss) => nss.reduce((ns, o) => NS.extend(ns, o), new NS());
     class NS {
     }
     NS.overlay = (ns) => Object.create(ns);
-    NS.sub = (ns, name) => name in ns && !isNS(ns[name]) ? errorShadowValue(name) :
+    NS.sub = (ns, name) => name in ns ? (!isNS(ns[name]) ? errorShadowValue(name) :
         isOwnProp(ns, name) ? ns[name] :
-            ns[name] = ns[name] ? NS.overlay(ns[name]) : new NS();
+            ns[name] = Object.create(ns[name])) :
+        ns[name] = new NS();
     NS.extend = (ns, obj) => {
         for (let name of Object.keys(obj)) {
             let val = obj[name];
@@ -37,9 +54,9 @@
     };
     Object.setPrototypeOf(NS.prototype, null);
     // utils
-    var isNS = (o) => o instanceof NS, isPlainObj = (o) => o.__proto__ === Object.prototype, isOwnProp = (o, name) => Object.prototype.hasOwnProperty.call(o, name), getProto = (o) => Object.getPrototypeOf(o);
+    var isNS = (o) => o instanceof NS, isPlainObj = (o) => o instanceof Object && getProto(o) === Object.prototype, isOwnProp = (o, name) => Object.prototype.hasOwnProperty.call(o, name), getProto = (o) => Object.getPrototypeOf(o);
     // errors
-    var errorMissingRule = (name) => { throw new Error("missing dependency: " + name); }, errorBadProd = (prod) => { throw new Error("bad namespace spec: must consist of only plain objects or generator functions: " + prod); }, errorShadowValue = (name) => { throw new Error("cannot shadow an earlier value with a nested namespace"); };
+    var errorMissingRule = (name) => { throw new Error("missing dependency: " + name); }, errorMissingGiven = (name) => { throw new Error(name + "was defined as a given but has not been supplied yet"); }, errorBadProd = (prod) => { throw new Error("bad namespace spec: must consist of only plain objects or generator functions: " + prod); }, errorShadowValue = (name) => { throw new Error("cannot shadow an earlier value with a nested namespace"); }, errorNotGivenSite = (name) => { throw new Error("location " + name + " is not registered as a given (null in namespace)"); }, errorNoSuchGiven = (name) => { throw new Error("location " + name + " does not exist in the namespace"); };
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.default = RoomOfRequirement;
 });
