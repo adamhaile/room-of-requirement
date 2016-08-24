@@ -10,8 +10,7 @@ interface Entrypoint {
     <T>(prod : Production<T>) : T
 }
 
-var RoomOfRequirement = (...namespaces : NS[]) => entrypoint(init(namespaces)),
-    entrypoint = (ns : NS) : Entrypoint => <T>(prod : Production<T>) => resolve(prod, ns, new NS()),
+var RoomOfRequirement = (...namespaces : NS[]) => injector(init(namespaces), new NS(), {}),
     resolve = (prod : Production<any>, ns : NS, cache : NS) => {
         var deps = {} as Dependencies,
             result = prod(injector(ns, cache, deps));

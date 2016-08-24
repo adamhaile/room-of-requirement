@@ -7,7 +7,7 @@
     }
 })(function (require, exports) {
     "use strict";
-    var RoomOfRequirement = (...namespaces) => entrypoint(init(namespaces)), entrypoint = (ns) => (prod) => resolve(prod, ns, new NS()), resolve = (prod, ns, cache) => {
+    var RoomOfRequirement = (...namespaces) => injector(init(namespaces), new NS(), {}), resolve = (prod, ns, cache) => {
         var deps = {}, result = prod(injector(ns, cache, deps));
         return result;
     }, injector = (ns, cache, deps) => new Proxy({}, { get: (_, name) => {
