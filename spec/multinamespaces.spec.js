@@ -46,6 +46,6 @@ describe("multiple namespaces", function () {
                     bleck: () => 2
                 }
             }))
-        .toThrowError(/object literal/);
+        .toThrowError(/shadow/);
     })
 })
