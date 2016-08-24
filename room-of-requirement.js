@@ -7,39 +7,45 @@
     }
 })(function (require, exports) {
     "use strict";
-    var RoomOfRequirement = (...namespaces) => injector(init(namespaces), new NS(), {}), resolve = (prod, ns, cache) => {
-        var deps = {}, result = prod(injector(ns, cache, deps));
-        return result;
-    }, injector = (ns, cache, deps) => new Proxy(givens(ns, cache), { get: (_, name) => {
-            var prod = ns[name];
-            return (name in cache && !(cache[name] instanceof NS) ?
-                (deps[name] = true, cache[name]) :
-                prod instanceof NS ?
-                    injector(prod, NS.sub(cache, name.toString()), deps[name] = deps[name] || {}) :
-                    prod instanceof Function ?
-                        (deps[name] = true, cache[name] = resolve(prod, ns, cache)) :
-                        prod === null ? errorMissingGiven(name) :
-                            !prod ? errorMissingRule(name) :
-                                errorBadProd(prod));
-        } }), givens = (ns, cache) => (givens) => injector(ns, NS.extend(NS.overlay(cache), givens), {}), init = (nss) => nss.reduce((ns, o) => NS.extend(ns, o), new NS());
+    var RoomOfRequirement = (...namespaces) => injector(init(namespaces), {}), resolve = (prod, ns) => {
+        var deps = {}, value = prod(injector(ns, deps));
+        return new Result(prod, value, deps);
+    }, injector = (ns, deps) => new Proxy(givens(ns), { get: function get(_, name) {
+            var node = ns[name];
+            return (node instanceof Result ?
+                (deps[name] = node).value :
+                node instanceof NS ?
+                    injector(NS.sub(ns, name), deps[name] = deps[name] || {}) :
+                    node instanceof Function ?
+                        (deps[name] = ns[name] = resolve(node, ns)).value :
+                        node === null ? errorMissingGiven(name) :
+                            !node ? errorMissingRule(name) :
+                                errorBadProd(node));
+        } }), givens = (ns) => (givens) => injector(NS.extend(NS.overlay(ns), givens, v => new Result(null, v, null)), {}), init = (nss) => nss.reduce((ns, o) => NS.extend(ns, o), new NS());
     class NS {
     }
     NS.overlay = (ns) => Object.create(ns);
-    NS.sub = (ns, name) => name in ns ? (!isNS(ns[name]) ? errorShadowValue(name) :
+    NS.sub = (ns, name) => name in ns && !isNS(ns[name]) ? errorShadowValue(name) :
         isOwnProp(ns, name) ? ns[name] :
-            ns[name] = Object.create(ns[name])) :
-        ns[name] = new NS();
-    NS.extend = (ns, obj) => {
+            ns[name] = (isNS(getProto(ns)) ? NS.overlay(NS.sub(getProto(ns), name)) : new NS());
+    NS.extend = (ns, obj, fn) => {
         for (let name of Object.keys(obj)) {
             let val = obj[name];
             if (isPlainObj(val))
                 NS.extend(NS.sub(ns, name), val);
             else
-                ns[name] = val;
+                ns[name] = fn ? fn(val) : val;
         }
         return ns;
     };
     Object.setPrototypeOf(NS.prototype, null);
+    class Result {
+        constructor(prod, value, deps) {
+            this.prod = prod;
+            this.value = value;
+            this.deps = deps;
+        }
+    }
     // utils
     var isNS = (o) => o instanceof NS, isPlainObj = (o) => o instanceof Object && getProto(o) === Object.prototype, isOwnProp = (o, name) => Object.prototype.hasOwnProperty.call(o, name), getProto = (o) => Object.getPrototypeOf(o);
     // errors

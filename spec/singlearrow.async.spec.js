@@ -1,7 +1,7 @@
 var RoomOfRequirement = require('../room-of-requirement').default,
     Promise = require('bluebird');
 
-describe("a single arrow production", function () {
+describe("a single arrow async production", function () {
     it("returns promise of the expected value", function (done) {
         var deps = RoomOfRequirement({
             foo: () => Promise.resolve(1)
