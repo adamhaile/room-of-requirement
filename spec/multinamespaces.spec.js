@@ -22,4 +22,30 @@ describe("multiple namespaces", function () {
 
         accio(({foo}) => expect(foo).toEqual(2));
     });
+
+    it("can see earlier nested rules", function () {
+        var accio = RoomOfRequirement({
+            foo: {
+                bar: () => 1
+            }
+        }, {
+            foo: {
+                bleck: () => 2
+            }
+        });
+
+        accio(({foo:{bar}}) => expect(bar).toEqual(1));
+    });
+
+    it("cannot shadow an earlier rule with a nested namespace", function () {
+        expect(() => 
+            RoomOfRequirement({
+                foo: () => 1
+            }, {
+                foo: {
+                    bleck: () => 2
+                }
+            }))
+        .toThrowError(/object literal/);
+    })
 })
