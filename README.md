@@ -1,42 +1,27 @@
-# room-of-requirement.js
-A minimalist, functionally-oriented dependency injector for Javascript ES6+.
+# screwball.js
+An experimental minimalist dependency injector for Javascript ES6+.
 
-Uses ES6 destructuring assignment and functions to define bindings in plain javascript.
+- Functions with ES6 destructuring arguments to define dependency rules
+- ES6 Proxies to lazily instantiate requests
+
+Still in proof-of-concept stage.
 
 ## Usage
 ```javascript
-import RoomOfRequirement from 'room-of-requirement';
+import Screwball from 'screwball';
 
-const get = RoomOfRequirement({
+const deps = Screwball({
     config: () => new Config(),
     db:     ({config}) => new Db(config),
     app:    ({db, config}) => new App(db, config),
     view:   ({app}) => new View(app) // .. or however you construct your apps
 });
 
-get(({view}) => document.body.append(view));
-```
+document.body.append(deps.view);
 
-Still in proof-of-concept stage.
+// Nested namespaces
 
-## Planned Features
-
-"Givens" -- supply some values to be used in resolution:
-
-```javascript
-const get = RoomOfRequirement({
-    ...
-    userService: ({db}) = new UserService(db),
-    user:        ({userId, userService}) => userService.getUser(userId) // note: no rule for userId
-});
-
-get({userId: 1}, ({user}) => ... do something with user); // supply userId to get user
-```
-
-Nested namespaces:
-
-```javascript
-const get = RoomOfRequirement({
+const deps = Screwball({
     ...
     controllers: {
         accountController: ({user}) => new AccountController(user),
@@ -45,15 +30,27 @@ const get = RoomOfRequirement({
     }
 });
 
-get(({controllers:{accountController}}) => accountController.Run());
+deps.controllers.accountController.Run();
+
+// "Givens" -- supply some values to be used in resolution
+
+const deps = Screwball({
+    ...
+    userService: ({db}) = new UserService(db),
+    user:        ({userId, userService}) => userService.getUser(userId) // note: no rule for userId
+});
+
+deps({userId: 1}).user // supply userId to get user
 ```
+
+## Possible Future Features
 
 Clean async injection using a double-arrow syntactic sugar:
 
 ```javascript
 // pass in a Promise object to make all bindings Promises, 
 // and use double arrow (=>()=>) syntax to cleanly chain them
-const get = RoomOfRequirement(Promise, {
+const deps = Screwball(Promise, {
     config: () =>()=> new Config(),
     db:     ({config}) =>()=> new Db(config),
     app:    ({db, config}) =>()=> new App(db, config),
@@ -61,7 +58,7 @@ const get = RoomOfRequirement(Promise, {
 });
 
 // almost same code now resolves asynchronously
-get(({view}) =>()=> document.body.append(view));
+deps.view.then(view => document.body.append(view));
 ```
 
 Copyright Adam Haile, 2016, MIT License
