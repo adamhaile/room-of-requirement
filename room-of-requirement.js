@@ -7,7 +7,7 @@
     }
 })(function (require, exports) {
     "use strict";
-    var Screwball = (...namespaces) => injector(init(namespaces), {}), resolve = (prod, ns) => {
+    var RoomOfRequirement = (...namespaces) => injector(init(namespaces), {}), resolve = (prod, ns) => {
         var deps = {}, value = prod(injector(ns, deps));
         return new Result(prod, value, deps);
     }, injector = (ns, deps) => new Proxy(givens(ns), { get: function get(_, name) {
@@ -52,6 +52,6 @@
     // errors
     var errorMissingRule = (name) => { throw new Error("missing dependency: " + name); }, errorBadProd = (prod) => { throw new Error("bad namespace spec: must consist of only plain objects or generator functions: " + prod); }, errorShadowValue = (name) => { throw new Error("cannot shadow a value with a namespace: " + name); }, errorShadowNamespace = (name) => { throw new Error("cannot shadow a namespace with a value: " + name); };
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.default = Screwball;
+    exports.default = RoomOfRequirement;
 });
 //# sourceMappingURL=room-of-requirement.js.map

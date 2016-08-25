@@ -1,4 +1,4 @@
-# screwball.js
+# room-of-requirement.js
 An experimental minimalist dependency injector for Javascript ES6+.
 
 - Functions with ES6 destructuring arguments to define dependency rules
@@ -8,9 +8,9 @@ Still in proof-of-concept stage.
 
 ## Usage
 ```javascript
-import Screwball from 'screwball';
+import RoomOfRequirement from 'room-of-requirement';
 
-const deps = Screwball({
+const deps = RoomOfRequirement({
     config: () => new Config(),
     db:     ({config}) => new Db(config),
     app:    ({db, config}) => new App(db, config),
@@ -21,7 +21,7 @@ document.body.append(deps.view);
 
 // Nested namespaces
 
-const deps = Screwball({
+const deps = RoomOfRequirement({
     ...
     controllers: {
         accountController: ({user}) => new AccountController(user),
@@ -34,7 +34,7 @@ deps.controllers.accountController.Run();
 
 // "Givens" -- supply some values to be used in resolution
 
-const deps = Screwball({
+const deps = RoomOfRequirement({
     ...
     userService: ({db}) = new UserService(db),
     user:        ({userId, userService}) => userService.getUser(userId) // note: no rule for userId
@@ -50,7 +50,7 @@ Clean async injection using a double-arrow syntactic sugar:
 ```javascript
 // pass in a Promise object to make all bindings Promises, 
 // and use double arrow (=>()=>) syntax to cleanly chain them
-const deps = Screwball(Promise, {
+const deps = RoomOfRequirement(Promise, {
     config: () =>()=> new Config(),
     db:     ({config}) =>()=> new Db(config),
     app:    ({db, config}) =>()=> new App(db, config),

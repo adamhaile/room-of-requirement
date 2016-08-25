@@ -1,7 +1,7 @@
 {
   "name": "room-of-requirement",
   "version": "0.0.1",
-  "description": "A functional dependency injector for ES6+",
+  "description": "An experimental, minimalist dependency injector for ES6+",
   "main": "room-of-requirement.js",
   "scripts": {
     "test": "jasmine"

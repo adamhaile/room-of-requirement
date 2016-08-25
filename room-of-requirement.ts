@@ -1,4 +1,4 @@
-var Screwball = (...namespaces : NS[]) => injector(init(namespaces), {}),
+var RoomOfRequirement = (...namespaces : NS[]) => injector(init(namespaces), {}),
     resolve = (prod : Function, ns : NS) => {
         var deps = {} as any,
             value = prod(injector(ns, deps));
@@ -60,4 +60,4 @@ var errorMissingRule : any = (name : string) => { throw new Error("missing depen
     errorShadowValue : any = (name : string) => { throw new Error("cannot shadow a value with a namespace: " + name); },
     errorShadowNamespace : any = (name : string) => { throw new Error("cannot shadow a namespace with a value: " + name); };
 
-export default Screwball;
+export default RoomOfRequirement;
