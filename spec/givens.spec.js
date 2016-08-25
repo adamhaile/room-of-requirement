@@ -7,17 +7,29 @@ describe("givens", function () {
         expect(deps({foo: 1}).foo).toEqual(1);
     });
 
-    it("can be pre-declared with null in the namespace", function () {
+    it("cannot shadow namespaces with values", function () {
         var deps = RoomOfRequirement({
-            foo: null
+            foo: {
+                bar : 1
+            }
         });
 
         expect(() =>
-            deps.foo
-        ).toThrowError(/given/);
+            deps({foo: 1})
+        ).toThrowError(/shadow/);
     });
 
-    it("can be supplied for sub-namespaces too", function () {
+    it("cannot shadow values with namespaces", function () {
+        var deps = RoomOfRequirement({
+            foo: () => 1
+        });
+
+        expect(() =>
+            deps({foo: { bar: 1 } })
+        ).toThrowError(/shadow/);
+    });
+
+    it("can be supplied for sub-namespaces", function () {
         var deps = RoomOfRequirement({
             foo: {
                 bar: () => 1

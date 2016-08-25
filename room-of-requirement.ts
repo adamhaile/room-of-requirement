@@ -1,4 +1,4 @@
-var RoomOfRequirement = (...namespaces : NS[]) => injector(init(namespaces), {}),
+var Screwball = (...namespaces : NS[]) => injector(init(namespaces), {}),
     resolve = (prod : Function, ns : NS) => {
         var deps = {} as any,
             value = prod(injector(ns, deps));
@@ -14,13 +14,12 @@ var RoomOfRequirement = (...namespaces : NS[]) => injector(init(namespaces), {})
                     injector(NS.sub(ns, name), deps[name] = deps[name] || {}) :
                 node instanceof Function ? 
                     (deps[name] = ns[name] = resolve(node, ns)).value :
-                node === null ? errorMissingGiven(name) :
                 !node ? errorMissingRule(name) :
                 errorBadProd(node)
             );
         } }),
     givens = (ns : NS) => (givens : any) => injector(NS.extend(NS.overlay(ns), givens, v => new Result(null!, v, null)), {}),
-    init = (nss : NS[]) => nss.reduce((ns, o) => NS.extend(ns, o), new NS());
+    init = (nses : NS[]) => nses.reduce((ns, o) => NS.extend(ns, o, v => v instanceof Function ? v : errorBadProd(v)), new NS());
 
 interface NS { [name : string] : NS | any }
 class NS {
@@ -29,11 +28,12 @@ class NS {
         name in ns && !isNS(ns[name]) ? errorShadowValue(name) :
         isOwnProp(ns, name) ? ns[name] : 
         ns[name] = (isNS(getProto(ns)) ? NS.overlay(NS.sub(getProto(ns), name)) : new NS());
-    static extend = (ns : NS, obj : any, fn? : (v : any) => any) => {
+    static extend = (ns : NS, obj : any, fn? : (val : any, cur? : any, name? : string) => any) => {
         for (let name of Object.keys(obj)) {
             let val = obj[name];
             if (isPlainObj(val)) NS.extend(NS.sub(ns, name), val);
-            else ns[name] = fn ? fn(val) : val;
+            else if (isNS(ns[name])) errorShadowNamespace(name)
+            else ns[name] = fn ? fn(val, ns[name], name) : val;
         }
         return ns;
     }
@@ -56,10 +56,8 @@ var isNS = (o : any) => o instanceof NS,
 
 // errors
 var errorMissingRule : any = (name : string) => { throw new Error("missing dependency: " + name); },
-    errorMissingGiven : any = (name : string) => { throw new Error(name + "was defined as a given but has not been supplied yet"); },
     errorBadProd : any = (prod : any) => { throw new Error("bad namespace spec: must consist of only plain objects or generator functions: " + prod); },
-    errorShadowValue : any = (name : string) => { throw new Error("cannot shadow an earlier value with a nested namespace"); },
-    errorNotGivenSite : any = (name : string) => { throw new Error("location " + name + " is not registered as a given (null in namespace)"); },
-    errorNoSuchGiven : any = (name : string) => { throw new Error("location " + name + " does not exist in the namespace"); };
+    errorShadowValue : any = (name : string) => { throw new Error("cannot shadow a value with a namespace: " + name); },
+    errorShadowNamespace : any = (name : string) => { throw new Error("cannot shadow a namespace with a value: " + name); };
 
-export default RoomOfRequirement;
+export default Screwball;
