@@ -14,7 +14,7 @@ var Screwball = (...namespaces : NS[]) => injector(init(namespaces), {}),
                     injector(NS.sub(ns, name), deps[name] = deps[name] || {}) :
                 node instanceof Function ? 
                     (deps[name] = ns[name] = resolve(node, ns)).value :
-                !node ? errorMissingRule(name) :
+                node === undefined ? errorMissingRule(name) :
                 errorBadProd(node)
             );
         } }),

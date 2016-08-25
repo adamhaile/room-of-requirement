@@ -18,7 +18,7 @@
                     injector(NS.sub(ns, name), deps[name] = deps[name] || {}) :
                     node instanceof Function ?
                         (deps[name] = ns[name] = resolve(node, ns)).value :
-                        !node ? errorMissingRule(name) :
+                        node === undefined ? errorMissingRule(name) :
                             errorBadProd(node));
         } }), givens = (ns) => (givens) => injector(NS.extend(NS.overlay(ns), givens, v => new Result(null, v, null)), {}), init = (nses) => nses.reduce((ns, o) => NS.extend(ns, o, v => v instanceof Function ? v : errorBadProd(v)), new NS());
     class NS {
