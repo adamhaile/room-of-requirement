@@ -1,88 +1,70 @@
-var RoomOfRequirement = (...namespaces : any[]) => injector(init(namespaces), 0, {}, null),
-    resolve = (prod : Function, ns : NS, depth : number, inv : Invalids) => {
-        var result = new Result(prod, null, 0);
-        result.value = prod(injector(ns, depth, inv, result));
-        return result;
-    },
-    injector = (ns : NS, depth : number, inv : Invalids, result : Result | null) : any =>
-        new Proxy(givens(ns, depth, inv), { get : function get(_, name) {
-            var node = ns[name];
-            if (node instanceof Result && inv[node.id]) node = node.prod;
+var RoomOfRequirement = (...specs : any[]) => injector(initState(specs), '', 0, null),
+    injector = (_ : State, base : string, depth : number, result : Result | null) : any =>
+        new Proxy(givens(_, base, depth), { get : function get(t, name) {
+            var path = combine(base, name),
+                node = _[path];
+            if (node instanceof Result && invalid(_, node)) node = node.prod;
             return (
                 node instanceof Result ?
                     (result && result.dep(node), 
                      node.value) :
-                node instanceof NS ?
-                    injector(NS.sub(ns, name), depth, inv, result) :
+                node === null ?
+                    injector(_, path, depth, result) :
                 node instanceof Function ? 
-                    (node = resolve(node, ns, depth, inv),
-                     NS.descend(ns, depth - node.depth)[name] = node,
+                    (node = resolve(_, path, depth, node),
+                     descend(_, depth - node.depth)[path] = node,
                      result && result.dep(node),
                      node.value) :
-                node === undefined ? errorMissingRule(name) :
+                node === undefined ? errorMissingRule(path) :
                 errorBadProd(node)
             );
         } }),
-    givens = (ns : NS, depth : number, inv : Invalids) => (givens : any) => {
-        ns = NS.overlay(ns), depth++, inv = Object.create(inv);
-        NS.extend(ns, givens, (v, o) => (invalidate(inv, o), new Result(null!, v, depth)));
-        return injector(ns, depth, inv, null);
+    resolve = (_ : State, path : string, depth : number, prod : Function) => {
+        var result = new Result(prod, null, path, 0);
+        result.value = prod(injector(_, '', depth, result));
+        return result;
     },
-    invalidate = (inv : Invalids, o : any) => {
-        if (o instanceof Result && !inv[o.id]) {
-            inv[o.id] = true;
-            for (let d of o.dependees) invalidate(inv, d);
-        }
+    initState = (specs : any[]) => {
+        var _ = Object.create(null);
+        for (var spec of specs) extend(_, '', spec, (p, v, o) => v instanceof Function ? v : errorBadProd(v));
+        return _;
     },
-    init = (nses : NS[]) => 
-        nses.reduce((ns, o) => 
-            NS.extend(ns, o, v => v instanceof Function ? v : errorBadProd(v)), 
-            new NS());
+    givens = (_ : State, path : string, depth : number) => (givens : any) => {
+        _ = Object.create(_), depth++;
+        extend(_, path, givens, (p, v, o) => new Result(null!, v, p, depth));
+        return injector(_, path, depth, null);
+    },
+    invalid = (_ : State, r : Result) : boolean =>
+        _[r.path] !== r || r.deps.some(d => invalid(_, d)),
+    combine = (b : string, n : string | number | symbol) => 
+        (b ? b + '.' : '') + n.toString().replace('\\', '\\\\').replace('.', '\\.'),
+    descend = (_ : State, depth : number) => { while (depth--) _ = getProto(_); return _; },
+    extend = (_ : State, path : string, obj : any, fn : (path : string, val : any, cur : any) => any) => {
+        if (isNamespace(obj)) { 
+            if (_[path]) errorShadowValue(path);
+            else _[path] = null; 
+            for (var n in obj) extend(_, combine(path, n), obj[n], fn);
+        } else if (_[path] === null) errorShadowNamespace(path)
+        else _[path] = fn(path, obj, _[path]);
+    },
+    isNamespace = (o : any) => o instanceof Object && getProto(o) === Object.prototype,
+    getProto = (o : any) => Object.getPrototypeOf(o);
 
-interface NS { [name : string] : NS | Function | Result }
-class NS {
-    static overlay = (ns : NS) => Object.create(ns);
-    static sub = (ns : NS, name : string | number | symbol) : NS => 
-        name in ns && !isNS(ns[name]) ? errorShadowValue(name) :
-        isOwnProp(ns, name) ? ns[name] : 
-        ns[name] = (isNS(getProto(ns)) ? NS.overlay(NS.sub(getProto(ns), name)) : new NS());
-    static descend = (ns : NS, depth : number) : NS => depth > 0 ? NS.descend(getProto(ns), depth - 1) : ns;
-    static extend = (ns : NS, obj : any, fn? : (val : any, cur? : any) => any) => {
-        for (let name of Object.keys(obj)) {
-            let val = obj[name];
-            if (isPlainObj(val)) NS.extend(NS.sub(ns, name), val);
-            else if (isNS(ns[name])) errorShadowNamespace(name)
-            else ns[name] = fn ? fn(val, ns[name]) : val;
-        }
-        return ns;
-    }
-}
-Object.setPrototypeOf(NS.prototype, null);
-
-interface Invalids {
-    [id : number] : boolean
-}
+interface State { [path : string] : Function | Result | null }
 
 class Result {
-    static count = 0;
     constructor(
         public prod : Function,
         public value : any,
-        public depth : number,
-        public id = Result.count++
+        public path : string,
+        public depth : number
     ) { }
-    dependees = [] as Result[];
+    deps = [] as Result[];
     dep(other : Result) {
         if (other.depth < this.depth) this.depth = other.depth;
-        other.dependees.push(this);
+        this.deps.push(other);
     }
 }
-
-// utils
-var isNS = (o : any) => o instanceof NS,
-    isPlainObj = (o : any) => o instanceof Object && getProto(o) === Object.prototype,
-    isOwnProp = (o : any, name : string | number | symbol) => Object.prototype.hasOwnProperty.call(o, name),
-    getProto = (o : any) => Object.getPrototypeOf(o);
 
 // errors
 var errorMissingRule : any = (name : string) => { throw new Error("missing dependency: " + name); },
