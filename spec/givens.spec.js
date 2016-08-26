@@ -37,5 +37,5 @@ describe("givens", function () {
         });
 
         expect(deps.foo({bar: 2}).bar).toEqual(2);
-    })
+    });
 });

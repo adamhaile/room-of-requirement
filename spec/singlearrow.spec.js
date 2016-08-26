@@ -8,16 +8,6 @@ describe("a single arrow production", function () {
 
         expect(deps.foo).toEqual(1);
     });
-    
-    it("returns a cached result with subsequent resolutions", function () {
-        var x = 1,
-            deps = RoomOfRequirement({
-                foo: () => x++
-            });
-
-        expect(deps.foo).toEqual(1);
-        expect(deps.foo).toEqual(1);
-    });
 
     it("can chain another target", function () {
         var deps = RoomOfRequirement({
@@ -36,18 +26,6 @@ describe("a single arrow production", function () {
         });
 
         expect(deps.bleck).toEqual([1, 2]);
-    });
-
-    it("resolves to a single value during the same resolution", function () {
-        var x = 1,
-            deps = RoomOfRequirement({
-                foo: () => x++,
-                bar1: ({foo}) => foo,
-                bar2: ({foo}) => foo,
-                bleck: ({bar1, bar2}) => [bar1, bar2]
-            });
-
-        expect(deps.bleck).toEqual([1, 1]);
     });
 
     it("throws on undefined dependencies", function () {
