@@ -1,16 +1,9 @@
 # room-of-requirement.js
-An experimental minimalist dependency injector for Javascript ES6+.
+An minimalist-but-powerful dependency injector for Javascript ES6+.
 
-- Dependency rules are defined using plain functions with ES6 destructuring syntax
-- Returns an ES6 Proxy that exposes dependency targets as simple properties
-- Proxy instantiates and caches dependencies on request (i.e. lazily)
-- Proxy accepts user-supplied "givens" that fill in missing targets and/or override existing ones
-- Invalidates cached dependencies affected by a given
-- Targets can be nested into heirarchical namespaces
+Creates an ES6 Proxy that exposes dependency targets as simple properties.
 
-Still in proof-of-concept stage.
-
-All major desktop browsers support the ES6 features used.  Node requires version 6+.  Mobile browsers don't yet support Proxies.
+All major desktop browsers except IE11 now support ES6 Proxies.  Node requires version 6+.  Mobile browsers don't yet.
 
 ## Usage
 ```javascript
