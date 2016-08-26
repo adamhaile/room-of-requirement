@@ -8,7 +8,6 @@ describe("givens", function () {
     });
 
     it("cannot shadow namespaces with values", function () {
-        debugger;
         var deps = RoomOfRequirement({
             foo: {
                 bar : () => 1
