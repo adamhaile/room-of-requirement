@@ -10,21 +10,32 @@ An experimental minimalist dependency injector for Javascript ES6+.
 
 Still in proof-of-concept stage.
 
+All major desktop browsers support the ES6 features used.  Node requires version 6+.  Mobile browsers don't yet support Proxies.
+
 ## Usage
 ```javascript
 import RoomOfRequirement from 'room-of-requirement';
 
-// define dependencies using ES6 destructuring syntax, ({...}) => ...
+// define dependencies as a namespace of generator functions 
+// ES6 destructuring makes syntax clean -- target: ({...deps...}) => ...impl...
+
 const deps = RoomOfRequirement({
     config: () => new Config(),
     db:     ({config}) => new Db(config),
     app:    ({db, config}) => new App(db, config),
-    view:   ({app}) => new View(app) // ... or however you construct your apps
+    view:   ({app}) => new View(app)
 });
 
-document.body.append(deps.view); // request dependencies as properties
+// request dependencies as properties
 
-// target namespace can be heirarchical
+document.body.append(deps.view); 
+
+// once evaluated, dependencies are cached and re-used
+
+deps.view === deps.view;
+
+// namespace can be heirarchical
+
 const deps = RoomOfRequirement({
     ...
     controllers: {
@@ -37,24 +48,35 @@ const deps = RoomOfRequirement({
 deps.controllers.account.Run();
 
 // "givens" -- supply some values to be used in resolution
+
 const deps = RoomOfRequirement({
     ...
     userService: ({db}) = new UserService(db),
     user:        ({userId, userService}) => userService.getUser(userId) // note: no rule for userId
 });
 
-deps({ userId: 1 }).user // supply missing targets, like userId to get user
-deps({ user: new User("joe") }).user // or override existing targets entirely
+deps({ userId: 1 }).user // supply missing depedencies, like userId to get user
+deps({ user: new User("joe") }).user // or override existing dependencies entirely
+
+// dependencies downstreawm of a given are re-evaluated
+
+deps({ userId: 1 }).user !== deps({userId: 2 }).user;
+
+// but unaffected dependencies stay cached
+
+deps.userService === deps({ userId: 1 }).userService
+
 ```
 
-## Possible Future Features
+## Possible Future Ideas
 
-Clean async injection using a double-arrow syntactic sugar:
+Some way to apply a monad to dependencies, to enable things like clean Promise-based async resolutions.
 
 ```javascript
-// pass in a Promise object to make all bindings Promises, 
-// and use double arrow (=>()=>) syntax to cleanly chain them
-const deps = RoomOfRequirement(Promise, {
+// pass in Promise methods to make all dependencies Promises.
+// Use double arrow (=>()=>) syntax to separate dependency detection from evaluation.
+// join depedencies' Promises before evaluating target.
+const deps = RoomOfRequirement(Promise.resolve, Promise.join, {
     config: () =>()=> new Config(),
     db:     ({config}) =>()=> new Db(config),
     app:    ({db, config}) =>()=> new App(db, config),
