@@ -66,10 +66,10 @@ deps.userService === deps({ userId: 1 }).userService
 Some way to apply a monad to dependencies, to enable things like clean Promise-based async resolutions.
 
 ```javascript
-// pass in Promise methods to make all dependencies Promises.
+// pass in Promise monadic functions to make all dependencies Promises.
 // Use double arrow (=>()=>) syntax to separate dependency detection from evaluation.
 // join depedencies' Promises before evaluating target.
-const deps = RoomOfRequirement(Promise.resolve, Promise.join, {
+const deps = RoomOfRequirement(Promise.resolve, Promise.all, { // aka lift, flatMap
     config: () =>()=> new Config(),
     db:     ({config}) =>()=> new Db(config),
     app:    ({db, config}) =>()=> new App(db, config),

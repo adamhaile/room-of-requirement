@@ -1,6 +1,6 @@
 var RoomOfRequirement = require('../room-of-requirement').default;
 
-describe("a single arrow production", function () {
+describe("definitions", function () {
     it("returns the expected value", function () {
         var deps = RoomOfRequirement({
             foo: () => 1
