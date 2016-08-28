@@ -2,11 +2,11 @@ var RoomOfRequirement = require('../room-of-requirement').default;
 
 describe("multiple resolution", function () {
     it("returns a value for each definition", function () {
-        var deps = RoomOfRequirement({
+        var deps = RoomOfRequirement([{
             foo: () => 1,
         }, {
             foo: () => 2
-        });
+        }]);
 
         expect(deps['foo[]']).toEqual([2, 1]);
     });
@@ -19,11 +19,11 @@ describe("multiple resolution", function () {
     });
 
     it("includes givens", function () {
-        var deps = RoomOfRequirement({
+        var deps = RoomOfRequirement([{
             foo: () => 1,
         }, {
             foo: () => 2
-        });
+        }]);
 
         expect(deps({ foo : 3 })({ foo: 4 })['foo[]']).toEqual([4, 3, 2, 1]);
     });

@@ -59,7 +59,10 @@
             return _[this.path] !== this || this.deps.some(d => d.invalidForState(_));
         }
     }
-    let RoomOfRequirement = (...specs) => injector(initState(specs), specs.length - 1, '', null), injector = (_, depth, base, result) => new Proxy(handleGivens(_, depth, base), {
+    let RoomOfRequirement = (spec) => {
+        spec = Array.isArray(spec) ? spec : [spec];
+        return injector(initState(spec), spec.length - 1, '', null);
+    }, injector = (_, depth, base, result) => new Proxy(handleGivens(_, depth, base), {
         get: (target, name) => get(_, depth, combinePath(base, name), result)
     }), get = (_, depth, path, result) => {
         var node = _[path];

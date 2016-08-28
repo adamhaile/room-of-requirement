@@ -8,7 +8,7 @@ class Scope {
         while (depth--) _ = getProto(_); 
         return _; 
     };
-    static extend = (_ : Scope, path : string, obj : any, fn : (path : string, val : any, cur : any) => any) => {
+    static extend = (_ : Scope, path : string, obj : any, fn : (path : string, val : any, cur : any) => Generator | Result) => {
         if (isPlainObject(obj)) { 
             if (_[path]) errorShadowValue(path);
             else _[path] = null; 
@@ -18,9 +18,10 @@ class Scope {
     };
 }
 
+type GeneratorFunc = (deps? : any) => any;
 class Generator {
     constructor(
-        public fn : Function,              // function to generate dependency
+        public fn : GeneratorFunc,         // function to generate dependency
         public depth : number              // depth in overlayed state
     ) { }
 }
@@ -42,8 +43,14 @@ class Result {
     }
 }
 
-let RoomOfRequirement = (...specs : any[]) => 
-        injector(initState(specs), specs.length - 1, '', null),
+interface NamespaceSpec {
+    [name : string] :  GeneratorFunc | NamespaceSpec
+}
+
+let RoomOfRequirement = (spec : NamespaceSpec | NamespaceSpec[]) => {
+        spec = Array.isArray(spec) ? spec : [spec];
+        return injector(initState(spec), spec.length - 1, '', null);
+    },
     injector = (_ : Scope, depth : number, base : string, result : Result | null) : any =>
         new Proxy(handleGivens(_, depth, base), { 
             get : (target, name) => get(_, depth, combinePath(base, name), result) 
@@ -80,7 +87,7 @@ let RoomOfRequirement = (...specs : any[]) =>
         }
         return result;
     },
-    initState = (specs : any[]) => {
+    initState = (specs : NamespaceSpec[]) => {
         for (var i = 0, _ = Scope.create(); i < specs.length; i++, _ = Scope.overlay(_)) {
             Scope.extend(_, '', specs[i],
                 (p, v, o) => v instanceof Function ? new Generator(v, i) : errorBadProd(p, v));
