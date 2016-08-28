@@ -40,6 +40,26 @@ const deps = RoomOfRequirement({
 
 deps.controllers.account.Run();
 
+// namespaces can have overlays ("modules") passed in as an array
+
+const deps = RoomOfRequirement([
+    {
+        ...
+        view: ({app}) => new View(app)
+    }, 
+    {
+        view: ({app}) => new AlternateView(app);
+    }
+]);
+
+// in which case last definition wins
+
+deps.view instanceof AlternateView;
+
+// but we can request all bindings of a target as an array -- 'target[]'
+
+deps['view[]'].length === 2;
+
 // "givens" -- supply some values to be used in resolution
 
 const deps = RoomOfRequirement({
