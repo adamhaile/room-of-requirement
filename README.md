@@ -1,9 +1,11 @@
 # room-of-requirement.js
 An minimalist-but-powerful dependency injector for Javascript ES6+.
 
-Creates an ES6 Proxy that exposes dependency targets as simple properties.
+Compiles dependency rules into an ES6 Proxy that exposes targets as simple properties.
 
 All major desktop browsers except IE11 now support ES6 Proxies.  Node requires version 6+.  Mobile browsers don't yet.
+
+Requires at least typesceript 2.0.0 beta to compile .ts source.
 
 ## Usage
 ```javascript
