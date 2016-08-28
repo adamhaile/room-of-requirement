@@ -4,7 +4,7 @@ describe("givens", function () {
     it("extends dependency network with new values", function () {
         var deps = RoomOfRequirement({ });
 
-        expect(deps({foo: 1}).foo).toEqual(1);
+        expect(deps({foo: _=>1}).foo).toEqual(1);
     });
 
     it("cannot shadow namespaces with values", function () {
@@ -15,7 +15,7 @@ describe("givens", function () {
         });
 
         expect(() =>
-            deps({foo: 1})
+            deps({foo: _=>1})
         ).toThrowError(/shadow/);
     });
 
@@ -25,7 +25,7 @@ describe("givens", function () {
         });
 
         expect(() =>
-            deps({foo: { bar: 1 } })
+            deps({foo: { bar: _=>1 } })
         ).toThrowError(/shadow/);
     });
 
@@ -36,7 +36,7 @@ describe("givens", function () {
             }
         });
 
-        expect(deps({ foo: { bar: 2 } }).foo.bar).toEqual(2);
+        expect(deps({ foo: { bar: _=>2 } }).foo.bar).toEqual(2);
     });
 
     it("can be supplied for sub-namespaces", function () {
@@ -46,6 +46,6 @@ describe("givens", function () {
             }
         });
 
-        expect(deps.foo({bar: 2}).bar).toEqual(2);
+        expect(deps.foo({bar: _=>2}).bar).toEqual(2);
     });
 });

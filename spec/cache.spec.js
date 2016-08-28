@@ -29,7 +29,7 @@ describe("cache", function () {
                 foo: () => x++
             });
 
-        expect(deps({bar : 2}).foo).toEqual(1);
+        expect(deps({bar : _ => 2}).foo).toEqual(1);
         expect(deps.foo).toEqual(1);
     });
 
@@ -40,6 +40,6 @@ describe("cache", function () {
             });
 
         expect(deps.bar).toEqual(1);
-        expect(deps({foo : 2}).bar).toEqual(2);
+        expect(deps({foo : _ => 2}).bar).toEqual(2);
     });
 });

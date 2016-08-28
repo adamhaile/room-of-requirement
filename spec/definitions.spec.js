@@ -29,6 +29,7 @@ describe("definitions", function () {
     });
 
     it("throws on undefined dependencies", function () {
+        debugger;
         var deps = RoomOfRequirement({
             foo: () => 1
         });

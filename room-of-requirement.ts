@@ -8,13 +8,14 @@ class Scope {
         while (depth--) _ = getProto(_); 
         return _; 
     };
-    static extend = (_ : Scope, path : string, obj : any, fn : (path : string, val : any, cur : any) => Generator | Result) => {
+    static extend = (_ : Scope, depth : number, path : string, obj : any) => {
         if (isPlainObject(obj)) { 
             if (_[path]) errorShadowValue(path);
             else _[path] = null; 
-            for (var n in obj) Scope.extend(_, combinePath(path, n), obj[n], fn);
+            for (let n in obj) Scope.extend(_, depth, combinePath(path, n), obj[n]);
         } else if (_[path] === null) errorShadowNamespace(path)
-        else _[path] = fn(path, obj, _[path]);
+        else if (obj instanceof Function) _[path] = new Generator(obj, depth);
+        else errorBadProd(path, obj);
     };
 }
 
@@ -38,8 +39,8 @@ class Result {
         if (dep.depth > this.depth) this.depth = dep.depth;
         this.deps.push(dep);
     }
-    invalidForState(_ : Scope) : boolean {
-        return _[this.path] !== this || this.deps.some(d => d.invalidForState(_));
+    invalidForScope(_ : Scope) : boolean {
+        return _[this.path] !== this || this.deps.some(d => d.invalidForScope(_));
     }
 }
 
@@ -47,38 +48,34 @@ interface NamespaceSpec {
     [name : string] :  GeneratorFunc | NamespaceSpec
 }
 
-let RoomOfRequirement = (spec : NamespaceSpec | NamespaceSpec[]) => {
-        spec = Array.isArray(spec) ? spec : [spec];
-        return injector(initState(spec), spec.length - 1, '', null);
-    },
-    injector = (_ : Scope, depth : number, base : string, result : Result | null) : any =>
-        new Proxy(handleGivens(_, depth, base), { 
-            get : (target, name) => get(_, depth, combinePath(base, name), result) 
+let injector = (_ : Scope, depth : number, base : string, requestor : Result | null) : any =>
+        new Proxy(overlay(_, depth, base), { 
+            get : (target, name) => get(_, depth, combinePath(base, name), requestor) 
         }),
-    get = (_ : Scope, depth : number, path : string, result : Result | null) => {
-        var node = _[path];
-        if (node instanceof Result && node.invalidForState(_)) node = node.gen!; // why !?
-        return node instanceof Result    ? (result && result.addDependency(node), 
+    get = (_ : Scope, depth : number, path : string, requestor : Result | null) => {
+        let node = _[path];
+        if (node instanceof Result && node.invalidForScope(_)) node = node.gen!; // why !?
+        return node instanceof Result    ? (requestor && requestor.addDependency(node), 
                                             node.value) :
-               node === null             ? injector(_, depth, path, result) :
+               node === null             ? injector(_, depth, path, requestor) :
                node instanceof Generator ? (node = resolve(_, depth, path, node),
-                                            result && result.addDependency(node),
+                                            requestor && requestor.addDependency(node),
                                             node.value) :
                node === undefined        ? 
                    (isMultiPath(path)    ? (node = resolveMulti(_, depth, path),
-                                            result && result.addDependency(node),
+                                            requestor && requestor.addDependency(node),
                                             node.value) 
                                          : errorMissingRule(path)) :
                errorBadProd(path, node);
     },
     resolve = (_ : Scope, depth : number, path : string, gen : Generator) => {
-        var result = new Result(gen, null, path, gen.depth);
+        let result = new Result(gen, null, path, gen.depth);
         result.value = gen.fn(injector(_, depth, '', result));
         Scope.getLower(_, depth - result.depth)[path] = result;
         return result;
     },
     resolveMulti = (_ : Scope, depth : number, path : string) => {
-        var target = path.substr(0, path.length - 2),
+        let target = path.substr(0, path.length - 2),
             values = [] as any[],
             result = new Result(void 0, values, path, 0);
         for (; depth >= 0; _ = getProto(_), depth--) if (hasOwnProp(_, target)) {
@@ -87,33 +84,27 @@ let RoomOfRequirement = (spec : NamespaceSpec | NamespaceSpec[]) => {
         }
         return result;
     },
-    initState = (specs : NamespaceSpec[]) => {
-        for (var i = 0, _ = Scope.create(); i < specs.length; i++, _ = Scope.overlay(_)) {
-            Scope.extend(_, '', specs[i],
-                (p, v, o) => v instanceof Function ? new Generator(v, i) : errorBadProd(p, v));
-        }
-        return getProto(_);
-    },
-    handleGivens = (_ : Scope, depth : number, path : string) => (givens : any) => {
-        _ = Scope.overlay(_), depth++;
-        Scope.extend(_, path, givens, (p, v, o) => new Result(void 0, v, p, depth));
+    overlay = (p_ : Scope, pdepth : number, path : string) => (givens : NamespaceSpec) => {
+        let _ = Scope.overlay(p_), 
+            depth = pdepth + 1;
+        Scope.extend(_, depth, path, givens);
         return injector(_, depth, path, null);
     };
 
 // paths
-var combinePath = (base : string, name : string | number | symbol) => 
+let combinePath = (base : string, name : string | number | symbol) => 
         (base ? base + '.' : '') + name.toString().replace('\\', '\\\\').replace('.', '\\.'),
     isMultiPath = (path : string) => path.substr(path.length - 2) === '[]';
 
 // utils    
-var isPlainObject = (o : any) => o instanceof Object && getProto(o) === Object.prototype,
+let isPlainObject = (o : any) => o instanceof Object && getProto(o) === Object.prototype,
     getProto = (o : any) => Object.getPrototypeOf(o),
     hasOwnProp = (o : any, name : string) => Object.prototype.hasOwnProperty.call(o, name);
 
 // errors
-var errorMissingRule = (path : string) => { throw new Error("missing dependency: " + path); },
+let errorMissingRule = (path : string) => { throw new Error("missing dependency: " + path); },
     errorBadProd = (path : string, prod : any) => { throw new Error("bad namespace spec: must consist of only plain objects or generator functions: " + path + ' = ' + prod); },
     errorShadowValue = (path : string) => { throw new Error("cannot shadow a value with a namespace: " + path); },
     errorShadowNamespace = (path : string) => { throw new Error("cannot shadow a namespace with a value: " + path); };
 
-export default RoomOfRequirement;
+export default injector(Scope.create(), 0, '', null);
