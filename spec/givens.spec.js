@@ -29,6 +29,16 @@ describe("givens", function () {
         ).toThrowError(/shadow/);
     });
 
+    it("can be heirarchical", function () {
+        var deps = RoomOfRequirement({
+            foo: {
+                bar: () => 1
+            }
+        });
+
+        expect(deps({ foo: { bar: 2 } }).foo.bar).toEqual(2);
+    });
+
     it("can be supplied for sub-namespaces", function () {
         var deps = RoomOfRequirement({
             foo: {
