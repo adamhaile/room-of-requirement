@@ -1,7 +1,7 @@
 var RoomOfRequirement = require('../room-of-requirement').default;
 
 describe("definitions", function () {
-    it("returns the expected value", function () {
+    it("should return the expected value", function () {
         var deps = RoomOfRequirement({
             foo: () => 1
         });
@@ -9,7 +9,7 @@ describe("definitions", function () {
         expect(deps.foo).toEqual(1);
     });
 
-    it("can chain another target", function () {
+    it("should allow chaining another target", function () {
         var deps = RoomOfRequirement({
             foo: () => 1,
             bar: ({foo}) => foo
@@ -18,7 +18,7 @@ describe("definitions", function () {
         expect(deps.bar).toEqual(1);
     });
 
-    it("can chain multiple targets", function () {
+    it("should allow chaining multiple targets", function () {
         var deps = RoomOfRequirement({
             foo: () => 1,
             bar: () => 2,
@@ -28,18 +28,25 @@ describe("definitions", function () {
         expect(deps.bleck).toEqual([1, 2]);
     });
 
-    it("throws on undefined dependencies", function () {
-        debugger;
+    it("should throw on undefined target", function () {
+        var deps = RoomOfRequirement({ });
+
+        expect(() => 
+            deps.foo
+        ).toThrowError(/foo/);
+    });
+
+    it("should throw on undefined upstream target", function () {
         var deps = RoomOfRequirement({
-            foo: () => 1
+            foo: ({bar}) => 1
         });
 
         expect(() => 
-            deps.bar
+            deps.foo
         ).toThrowError(/bar/);
     });
 
-    it("can have nested requirements", function () {
+    it("should allow nested definitions", function () {
         var deps = RoomOfRequirement({
             foo: {
                 bar: () => 2
@@ -49,7 +56,7 @@ describe("definitions", function () {
         expect(deps.foo.bar).toEqual(2);
     });
 
-    it("can have deeply nested requirements", function () {
+    it("should allow deeply nested definitions", function () {
         var deps = RoomOfRequirement({
             foo: {
                 bar: {
@@ -63,11 +70,13 @@ describe("definitions", function () {
         expect(deps.foo.bar.bleck.zorp).toEqual(2);
     });
 
-    it("does not pick up prototype properties", function () {
-        var deps = RoomOfRequirement({});
+    it("should not pick up prototype properties", function () {
+        var deps = RoomOfRequirement({
+            foo: ({toString}) => 1
+        });
 
         expect(() => 
-            deps.toString
+            deps.foo
         ).toThrowError(/toString/);
     });
 })

@@ -1,7 +1,14 @@
 var RoomOfRequirement = require('../room-of-requirement').default;
 
 describe("multiple resolution", function () {
-    it("returns a value for each definition", function () {
+    it("should return empty array for undefined target", function () {
+        var deps = RoomOfRequirement({
+        });
+
+        expect(deps['foo[]']).toEqual([]);
+    });
+
+    it("should return a value for each definition", function () {
         var deps = RoomOfRequirement({
             foo: () => 1,
         })({
@@ -11,20 +18,20 @@ describe("multiple resolution", function () {
         expect(deps['foo[]']).toEqual([2, 1]);
     });
 
-    it("returns empty array for undefined target", function () {
+    it("should include new definitions when initial set was empty", function () {
         var deps = RoomOfRequirement({
         });
 
         expect(deps['foo[]']).toEqual([]);
+        expect(deps({foo : _ => 1})['foo[]']).toEqual([1]);
     });
 
-    it("includes givens", function () {
+    it("should invalidate downstream dependencies when set changes", function () {
         var deps = RoomOfRequirement({
-            foo: () => 1,
-        })({
-            foo: () => 2
+            bar: ({'foo[]':foos}) => foos.length
         });
 
-        expect(deps({ foo : _=>3 })({ foo: _=>4 })['foo[]']).toEqual([4, 3, 2, 1]);
+        expect(deps.bar).toEqual(0);
+        expect(deps({foo : _ => 1}).bar).toEqual(1);
     });
 });
