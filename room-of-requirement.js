@@ -8,95 +8,91 @@
 })(function (require, exports) {
     "use strict";
     class Scope {
-    }
-    Scope.create = () => Object.create(null);
-    Scope.overlay = (_) => Object.create(_);
-    Scope.getLower = (_, depth) => {
-        while (depth--)
-            _ = getProto(_);
-        return _;
-    };
-    Scope.extend = (_, depth, path, obj) => {
-        if (isPlainObject(obj)) {
-            if (_[path])
-                errorShadowValue(path);
-            else
-                _[path] = null;
-            for (let n in obj)
-                Scope.extend(_, depth, combinePath(path, n), obj[n]);
+        constructor(depth, cache, parent) {
+            this.depth = depth;
+            this.cache = cache;
+            this.parent = parent;
         }
-        else if (_[path] === null)
-            errorShadowNamespace(path);
-        else if (obj instanceof Function)
-            _[path] = new Generator(obj, depth);
-        else
-            errorBadProd(path, obj);
-    };
+    }
     class Generator {
         constructor(fn, // function to generate dependency
-            depth // depth in overlayed state
+            scope, // scope in which generator was added
+            path // path of generator
             ) {
             this.fn = fn;
-            this.depth = depth;
+            this.scope = scope;
+            this.path = path;
         }
     }
     class Result {
-        constructor(gen, // generator for this result, or undefined for givens and multis
-            value, // value of the result, polymorphic
-            path, // path of result
-            depth // depth in overlayed state, = max depth of dependencies
-            ) {
-            this.gen = gen;
+        constructor(value, // value of result
+            scope, // scope in which result is valid
+            gen) {
             this.value = value;
-            this.path = path;
-            this.depth = depth;
+            this.scope = scope;
+            this.gen = gen;
             this.deps = []; // dependencies of this result, for determining validity
         }
+        invalid(_) { return _.cache[this.gen.path] !== this || this.deps.some(d => d.invalid(_)); }
         addDependency(dep) {
-            if (dep.depth > this.depth)
-                this.depth = dep.depth;
+            if (this.scope.depth < dep.scope.depth)
+                this.scope = dep.scope;
             this.deps.push(dep);
         }
-        invalidForScope(_) {
-            return _[this.path] !== this || this.deps.some(d => d.invalidForScope(_));
-        }
     }
-    let injector = (_, depth, base, requestor) => new Proxy(overlay(_, depth, base), {
-        get: (target, name) => get(_, depth, combinePath(base, name), requestor)
-    }), get = (_, depth, path, requestor) => {
-        let node = _[path];
-        if (node instanceof Result && node.invalidForScope(_))
-            node = node.gen; // why !?
-        return node instanceof Result ? (requestor && requestor.addDependency(node),
-            node.value) :
-            node === null ? injector(_, depth, path, requestor) :
-                node instanceof Generator ? (node = resolve(_, depth, path, node),
-                    requestor && requestor.addDependency(node),
-                    node.value) :
-                    node === undefined ?
-                        (isMultiPath(path) ? (node = resolveMulti(_, depth, path),
-                            requestor && requestor.addDependency(node),
-                            node.value)
-                            : errorMissingRule(path)) :
-                        errorBadProd(path, node);
-    }, resolve = (_, depth, path, gen) => {
-        let result = new Result(gen, null, path, gen.depth);
-        result.value = gen.fn(injector(_, depth, '', result));
-        Scope.getLower(_, depth - result.depth)[path] = result;
+    class Multi {
+        constructor(value, scope, target) {
+            this.value = value;
+            this.scope = scope;
+            this.target = target;
+        }
+        invalid(_) { var top = _.cache[this.target]; return !!top && top.scope !== this.scope; }
+    }
+    let proxy = (_, base, requestor) => new Proxy(overlay(_, base), {
+        get: (target, name) => get(_, combinePath(base, name), requestor)
+    }), get = (_, path, requestor) => {
+        let node = resolve(_, path, _.cache[path]);
+        if (requestor && node)
+            requestor.addDependency(node);
+        return node ? node.value : proxy(_, path, requestor);
+    }, resolve = (_, path, node) => node instanceof Generator ? resolveGenerator(_, path, node) :
+        node instanceof Result && node.invalid(_) ? resolveGenerator(_, path, node.gen) :
+            node instanceof Multi && node.invalid(_) ? resolveMulti(_, path) :
+                node === undefined ? (isMultiPath(path) ? resolveMulti(_, path)
+                    : errorMissingRule(path)) :
+                    node, resolveGenerator = (_, path, gen) => {
+        let result = new Result(null, gen.scope, gen);
+        result.value = gen.fn(proxy(_, '', result));
+        result.scope.cache[path] = result;
         return result;
-    }, resolveMulti = (_, depth, path) => {
-        let target = path.substr(0, path.length - 2), values = [], result = new Result(void 0, values, path, 0);
-        for (; depth >= 0; _ = getProto(_), depth--)
-            if (hasOwnProp(_, target)) {
-                values.push(get(_, depth, target, values.length ? null : result));
-                if (values.length === 1)
-                    _[path] = result;
+    }, resolveMulti = (_, path) => {
+        let target = path.substr(0, path.length - 2), result = new Multi([], _, target);
+        do
+            if (hasOwnProp(_.cache, target)) {
+                result.value.push(get(_, target, null));
             }
+        while (_ = _.parent);
+        result.scope.cache[path] = result;
         return result;
-    }, overlay = (p_, pdepth, path) => (givens) => {
-        let _ = Scope.overlay(p_), depth = pdepth + 1;
-        Scope.extend(_, depth, path, givens);
-        return injector(_, depth, path, null);
+    }, overlay = (p, path) => (generators) => {
+        let _ = new Scope(p.depth + 1, Object.create(p.cache), p);
+        cacheGenerators(_, path, generators);
+        return proxy(_, path, null);
+    }, cacheGenerators = (_, path, obj) => {
+        if (isPlainObject(obj)) {
+            if (_.cache[path])
+                errorShadowValue(path);
+            else
+                _.cache[path] = null;
+            for (let n in obj)
+                cacheGenerators(_, combinePath(path, n), obj[n]);
+        }
+        else if (_.cache[path] === null)
+            errorShadowNamespace(path);
+        else if (obj instanceof Function)
+            _.cache[path] = new Generator(obj, _, path);
+        else
+            errorBadProd(path, obj);
     };
     // paths
     let combinePath = (base, name) => (base ? base + '.' : '') + name.toString().replace('\\', '\\\\').replace('.', '\\.'), isMultiPath = (path) => path.substr(path.length - 2) === '[]';
@@ -105,6 +101,6 @@
     // errors
     let errorMissingRule = (path) => { throw new Error("missing dependency: " + path); }, errorBadProd = (path, prod) => { throw new Error("bad namespace spec: must consist of only plain objects or generator functions: " + path + ' = ' + prod); }, errorShadowValue = (path) => { throw new Error("cannot shadow a value with a namespace: " + path); }, errorShadowNamespace = (path) => { throw new Error("cannot shadow a namespace with a value: " + path); };
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.default = injector(Scope.create(), 0, '', null);
+    exports.default = proxy(new Scope(0, Object.create(null), null), '', null);
 });
 //# sourceMappingURL=room-of-requirement.js.map
