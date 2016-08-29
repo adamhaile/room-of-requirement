@@ -5,7 +5,7 @@ Compiles dependency rules into an ES6 Proxy that exposes targets as simple prope
 
 All major desktop browsers except IE11 now support ES6 Proxies.  Node requires version 6+.  Mobile browsers don't yet.
 
-Requires at least typesceript 2.0.0 beta to compile .ts source.
+Requires at least typescript 2.0.0 beta to compile .ts source.
 
 ## Usage
 ```javascript
