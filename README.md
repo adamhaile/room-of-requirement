@@ -1,11 +1,17 @@
 # room-of-requirement.js
 An minimalist-but-powerful dependency injector for Javascript ES6+.
 
-Compiles dependency rules into an ES6 Proxy that exposes targets as simple properties.
+RoomOfRequirement creates a root dependency cache that supports just two operations:
+- extend the ruleset by passing in new rules and getting back a new, extended cache
+- request a dependency by referencing it as a property of the cache (cache.dependency)
 
-All major desktop browsers except IE11 now support ES6 Proxies.  Node requires version 6+.  Mobile browsers don't yet.
+Rules are defined as an object matching dependency names to constructor functions: `{ foo: ({bar}) => new Foo(bar) }`.
 
-Requires at least typescript 2.0.0 beta to compile .ts source.
+Dependencies are evaluated lazily and cached for re-use.  If new rules override previous ones, affected caches are invalidated.
+
+RoomOfRequirement uses ES6 Proxies, which are now supported on all major desktop browsers except IE11.  Node requires version 6+.  Mobile browsers don't yet.
+
+Compiling the typescript source requires at least typescript 2.0.0 beta.
 
 ## Usage
 ```javascript
