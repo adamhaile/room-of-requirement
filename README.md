@@ -5,13 +5,13 @@ RoomOfRequirement creates a root dependency cache that supports just two operati
 - extend the ruleset by passing in new rules and getting back a new, extended cache
 - request a dependency by referencing it as a property of the cache (cache.dependency)
 
-Rules are defined as an object matching dependency names to constructor functions: `{ foo: ({bar}) => new Foo(bar) }`.
+Rules are defined by an object that matches dependency names to constructor functions: `{ foo: () => new Foo() }`.
 
-Dependencies are evaluated lazily and cached for re-use.  If new rules override previous ones, affected caches are invalidated.
+Dependencies are evaluated lazily and cached for re-use.  If new rules override previous ones, affected caches are invalidated in the extended cache.
 
-RoomOfRequirement uses ES6 Proxies, which are now supported on all major desktop browsers except IE11.  Node requires version 6+.  Mobile browsers don't yet.
+RoomOfRequirement uses ES6 Proxies, which are now supported on all major desktop browsers except IE11.  Node requires version 6+.  Mobile browsers don't yet.  See [the kangax tables](http://kangax.github.io/compat-table/es6/#test-Proxy).
 
-Compiling the typescript source requires at least typescript 2.0.0 beta.
+RoomOfRequirement is written in typescript and requires at least typescript 2.0.0 beta to compile to .js.
 
 ## Usage
 ```javascript
