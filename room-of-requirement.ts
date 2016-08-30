@@ -1,56 +1,47 @@
 class Cache {
     constructor(
         public depth : number,
-        public items : { [path : string] : CacheEntry },
+        public items : { [path : string] : CacheItem | undefined }, // undefined = cache miss
         public parent : Cache | null
     ) { }
 }
 
-type CacheEntry = Generator | Result | Multi | SubRules | undefined;
-
-// cache entry subtypes and runtime typeguards
-type Leaf = Generator | Result | Multi;
-type Resolved = Result | Multi | SubRules | undefined;
-type Value = Result | Multi;
-var isLeaf     = (e : CacheEntry) : e is Leaf     => !!e && !(e instanceof SubRules),
-    isResolved = (e : CacheEntry) : e is Resolved => !(e instanceof Generator),
-    isValue    = (e : CacheEntry) : e is Value    => isResolved(e) && isLeaf(e);
-
-class Generator {
-    constructor(
-        public fn : Function,   // function to generate dependency
-        public scope : Cache,   // scope in which generator was added
-        public path : string    // path of generator
-    ) { }
+abstract class CacheItem {
+    cache : Cache;
+    path : string;
+    constructor(cache : Cache, path : string) { this.cache = cache; this.path = path; }
 }
 
-class Result {
-    constructor(
-        public value : any,     // value of result
-        public scope : Cache,   // scope in which result is valid
-        public gen : Generator, // generator for this result
-    ) { }
+class SubRules extends CacheItem { }
+
+abstract class Leaf extends CacheItem { }
+
+class Generator extends Leaf {
+    fn : Function;
+    constructor(cache: Cache, path : string, fn : Function) { super(cache, path); this.fn = fn; }
+}
+
+abstract class Value extends Leaf {
+    value : any;
+    constructor(cache: Cache, path : string, value : any) { super(cache, path); this.value = value; }
+    abstract invalid(_ : Cache) : boolean;
+}
+
+class Result extends Value {
+    gen : Generator;
     deps = [] as Value[]; // dependencies of this result, for determining validity
-    invalid(_ : Cache) : boolean { return _.items[this.gen.path] !== this || this.deps.some(d => d.invalid(_)); }
+    constructor(cache : Cache, path : string, value : any, gen : Generator) { super(cache, path, value); this.gen = gen; }
+    invalid(_ : Cache) : boolean { return _.items[this.path] !== this || this.deps.some(d => d.invalid(_)); }
     addDependency(dep : Value) {
-        if (this.scope.depth < dep.scope.depth) this.scope = dep.scope;
+        if (this.cache.depth < dep.cache.depth) this.cache = dep.cache;
         this.deps.push(dep);
     }
 }
 
-class Multi {
-    constructor(
-        public value : any[], 
-        public scope : Cache,
-        public target : string
-    ) { }
-    invalid(_ : Cache) { var top = _.items[this.target]; return !!top && top.scope !== this.scope; }
-}
-
-class SubRules {
-    constructor(
-        public scope : Cache
-    ) { }
+class Multi extends Value {
+    target : string;
+    constructor(cache : Cache, path : string, value : any, target : string) { super(cache, path, value); this.target = target; }
+    invalid(_ : Cache) { var top = _.items[this.target]; return !!top && top.cache !== this.cache; }
 }
 
 let proxy = (_ : Cache, base : string, requestor : Result | null) : any =>
@@ -59,11 +50,11 @@ let proxy = (_ : Cache, base : string, requestor : Result | null) : any =>
         }),
     get = (_ : Cache, path : string, requestor : Result | null) => {
         let node = resolve(_, path);
-        if (requestor && isValue(node)) requestor.addDependency(node);
+        if (requestor && node instanceof Value) requestor.addDependency(node);
         if (node === undefined) return errorMissingTarget(path);
-        return isValue(node) ? node.value : proxy(_, path, requestor);
+        return node instanceof Value ? node.value : proxy(_, path, requestor);
     },
-    resolve = (_ : Cache, path : string) : Resolved => {
+    resolve = (_ : Cache, path : string) : Value | SubRules | undefined => {
         var cached   = _.items[path],
             resolved = 
                 cached instanceof Generator                   ? resolveGenerator(_, path, cached) :
@@ -71,23 +62,23 @@ let proxy = (_ : Cache, base : string, requestor : Result | null) : any =>
                 cached instanceof Multi  && cached.invalid(_) ? resolveMulti(_, path) :
                 cached === undefined     && isMultiPath(path) ? resolveMulti(_, path) :
                 cached;
-        if (resolved && resolved !== cached) resolved.scope.items[path] = resolved;
+        if (resolved && resolved !== cached) resolved.cache.items[path] = resolved;
         return resolved;
     },
     resolveGenerator = (_ : Cache, path : string, gen : Generator) => {
-        let result = new Result(undefined, gen.scope, gen);
+        let result = new Result(gen.cache, path, undefined, gen);
         result.value = gen.fn(proxy(_, '', result));
         return result;
     },
     resolveMulti = (_ : Cache, path : string) => {
         let target = path.substr(0, path.length - 2),
-            result = new Multi([], root, target);
+            result = new Multi(root, path, [], target);
         for (var node = resolve(_, target);                                             // get first def'n
              node !== undefined;                                                        // loop until undefined
-             node = node.scope.parent ? resolve(node.scope.parent, target) : undefined) // advance to next def'n`
+             node = node.cache.parent ? resolve(node.cache.parent, target) : undefined) // advance to next def'n`
         {
-            if (result.scope === root) result.scope = node.scope;
-            result.value.push(isLeaf(node) ? node.value : proxy(node.scope, target, null));
+            if (result.cache === root) result.cache = node.cache;
+            result.value.push(node instanceof Value ? node.value : proxy(node.cache, target, null));
         }
         return result;
     },
@@ -97,24 +88,18 @@ let proxy = (_ : Cache, base : string, requestor : Result | null) : any =>
         return proxy(_, path, null);
     },
     cacheGenerators = (_ : Cache, path : string, obj : any) => {
-        if (isPlainObject(obj)) { 
-            if (isLeaf(_.items[path])) errorShadowValue(path);
-            else _.items[path] = new SubRules(_); 
+        if (obj instanceof Object && Object.getPrototypeOf(obj) === Object.prototype) { 
+            if (_.items[path] instanceof Leaf) errorShadowValue(path);
+            else _.items[path] = new SubRules(_, path); 
             for (let n in obj) cacheGenerators(_, combinePath(path, n), obj[n]);
-        } else if (_.items[path] instanceof SubRules) errorShadowNamespace(path)
-        else if (obj instanceof Function) _.items[path] = new Generator(obj, _, path);
-        else errorBadGenerator(path, obj);
-    };
-
-// paths
-let combinePath = (base : string, name : string | number | symbol) => 
+        } else if (obj instanceof Function) {
+            if (_.items[path] instanceof SubRules) errorShadowNamespace(path);
+            else _.items[path] = new Generator(_, path, obj);
+        } else errorBadGenerator(path, obj);
+    },
+    combinePath = (base : string, name : string | number | symbol) => 
         (base ? base + '.' : '') + name.toString().replace('\\', '\\\\').replace('.', '\\.'),
     isMultiPath = (path : string) => path.substr(path.length - 2) === '[]';
-
-// utils    
-let isPlainObject = (o : any) => o instanceof Object && getProto(o) === Object.prototype,
-    getProto = (o : any) => Object.getPrototypeOf(o),
-    hasOwnProp = (o : any, name : string) => Object.prototype.hasOwnProperty.call(o, name);
 
 // errors
 let errorMissingTarget = (path : string) => { throw new Error("missing dependency: " + path); },
