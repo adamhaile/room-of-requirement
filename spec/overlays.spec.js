@@ -63,7 +63,7 @@ describe("overlays", function () {
         expect(deps.foo.bar).toEqual(1);
     });
 
-    it("should not leak definitions to earlier scopes", function () {
+    it("should not leak definitions to earlier caches", function () {
         var deps1 = RoomOfRequirement({
                 foo: () => 1
             }),
@@ -78,7 +78,7 @@ describe("overlays", function () {
         ).toThrowError(/bar/);
     });
 
-    it("should not leak definitions to sibling scopes", function () {
+    it("should not leak definitions to sibling caches", function () {
         var deps1 = RoomOfRequirement({
                 foo: () => 1
             }),

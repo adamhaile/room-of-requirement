@@ -1,6 +1,6 @@
 var RoomOfRequirement = require('../room-of-requirement').default;
 
-describe("scope", function () {    
+describe("cache", function () {    
     it("should not evaluate result until requested", function () {
         var x = 0,
             deps = RoomOfRequirement({
