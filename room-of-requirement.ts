@@ -1,97 +1,109 @@
-class Scope {
+class Cache {
     constructor(
         public depth : number,
-        public cache : { [path : string] : Generator | Result | Multi | null | undefined },
-        public parent : Scope | null
+        public items : { [path : string] : CacheEntry },
+        public parent : Cache | null
     ) { }
 }
 
-type GeneratorFunc = (deps? : any) => any;
+type CacheEntry = Generator | Result | Multi | SubRules | undefined;
+
+// cache entry subtypes and runtime typeguards
+type Leaf = Generator | Result | Multi;
+type Resolved = Result | Multi | SubRules | undefined;
+type Value = Result | Multi;
+var isLeaf     = (e : CacheEntry) : e is Leaf     => !!e && !(e instanceof SubRules),
+    isResolved = (e : CacheEntry) : e is Resolved => !(e instanceof Generator),
+    isValue    = (e : CacheEntry) : e is Value    => isResolved(e) && isLeaf(e);
 
 class Generator {
     constructor(
-        public fn : GeneratorFunc, // function to generate dependency
-        public scope : Scope,      // scope in which generator was added
-        public path : string       // path of generator
+        public fn : Function,   // function to generate dependency
+        public scope : Cache,   // scope in which generator was added
+        public path : string    // path of generator
     ) { }
 }
 
-interface IDependency {
-    scope : Scope;
-    invalid(_ : Scope) : boolean;
-}
-
-class Result implements IDependency {
+class Result {
     constructor(
         public value : any,     // value of result
-        public scope : Scope,   // scope in which result is valid
+        public scope : Cache,   // scope in which result is valid
         public gen : Generator, // generator for this result
     ) { }
-    deps = [] as IDependency[]; // dependencies of this result, for determining validity
-    invalid(_ : Scope) { return _.cache[this.gen.path] !== this || this.deps.some(d => d.invalid(_)); }
-    addDependency(dep : IDependency) {
+    deps = [] as Value[]; // dependencies of this result, for determining validity
+    invalid(_ : Cache) : boolean { return _.items[this.gen.path] !== this || this.deps.some(d => d.invalid(_)); }
+    addDependency(dep : Value) {
         if (this.scope.depth < dep.scope.depth) this.scope = dep.scope;
         this.deps.push(dep);
     }
 }
 
-class Multi implements IDependency {
+class Multi {
     constructor(
         public value : any[], 
-        public scope : Scope,
+        public scope : Cache,
         public target : string
     ) { }
-    invalid(_ : Scope) { var top = _.cache[this.target]; return !!top && top.scope !== this.scope; }
+    invalid(_ : Cache) { var top = _.items[this.target]; return !!top && top.scope !== this.scope; }
 }
 
-interface NamespaceSpec {
-    [name : string] :  GeneratorFunc | NamespaceSpec
+class SubRules {
+    constructor(
+        public scope : Cache
+    ) { }
 }
 
-let proxy = (_ : Scope, base : string, requestor : Result | null) : any =>
+let proxy = (_ : Cache, base : string, requestor : Result | null) : any =>
         new Proxy(overlay(_, base), { 
             get : (target, name) => get(_, combinePath(base, name), requestor) 
         }),
-    get = (_ : Scope, path : string, requestor : Result | null) => {
-        let node = resolve(_, path, _.cache[path]);
-        if (requestor && node) requestor.addDependency(node);
-        return node ? node.value : proxy(_, path, requestor);
+    get = (_ : Cache, path : string, requestor : Result | null) => {
+        let node = resolve(_, path);
+        if (requestor && isValue(node)) requestor.addDependency(node);
+        if (node === undefined) return errorMissingTarget(path);
+        return isValue(node) ? node.value : proxy(_, path, requestor);
     },
-    resolve = (_ : Scope, path : string, node : Generator | Result | Multi | null | undefined) =>
-        node instanceof Generator                   ? resolveGenerator(_, path, node) :
-        node instanceof Result && node.invalid(_)   ? resolveGenerator(_, path, node.gen) :
-        node instanceof Multi  && node.invalid(_)   ? resolveMulti(_, path) :
-        node === undefined ? (isMultiPath(path)     ? resolveMulti(_, path)
-                                                    : errorMissingRule(path)) :
-        node,
-    resolveGenerator = (_ : Scope, path : string, gen : Generator) => {
-        let result = new Result(null, gen.scope, gen);
+    resolve = (_ : Cache, path : string) : Resolved => {
+        var cached   = _.items[path],
+            resolved = 
+                cached instanceof Generator                   ? resolveGenerator(_, path, cached) :
+                cached instanceof Result && cached.invalid(_) ? resolveGenerator(_, path, cached.gen) :
+                cached instanceof Multi  && cached.invalid(_) ? resolveMulti(_, path) :
+                cached === undefined     && isMultiPath(path) ? resolveMulti(_, path) :
+                cached;
+        if (resolved && resolved !== cached) resolved.scope.items[path] = resolved;
+        return resolved;
+    },
+    resolveGenerator = (_ : Cache, path : string, gen : Generator) => {
+        let result = new Result(undefined, gen.scope, gen);
         result.value = gen.fn(proxy(_, '', result));
-        result.scope.cache[path] = result;
         return result;
     },
-    resolveMulti = (_ : Scope, path : string) => {
+    resolveMulti = (_ : Cache, path : string) => {
         let target = path.substr(0, path.length - 2),
-            result = new Multi([], _, target);
-        do if (hasOwnProp(_.cache, target)) {
-            result.value.push(get(_, target, null));
-        } while (_ = _.parent!);
-        result.scope.cache[path] = result;
+            result = new Multi([], root, target);
+        for (var node = resolve(_, target);                                             // get first def'n
+             node !== undefined;                                                        // loop until undefined
+             node = node.scope.parent ? resolve(node.scope.parent, target) : undefined) // advance to next def'n`
+        {
+            if (result.scope === root) result.scope = node.scope;
+            result.value.push(isLeaf(node) ? node.value : proxy(node.scope, target, null));
+        }
         return result;
     },
-    overlay = (p : Scope, path : string) => (generators : NamespaceSpec) => {
-        let _ = new Scope(p.depth + 1, Object.create(p.cache), p);
+    overlay = (parent : Cache, path : string) => (generators : any) => {
+        let _ = new Cache(parent.depth + 1, Object.create(parent.items), parent);
         cacheGenerators(_, path, generators);
         return proxy(_, path, null);
     },
-    cacheGenerators = (_ : Scope, path : string, obj : any) => {
+    cacheGenerators = (_ : Cache, path : string, obj : any) => {
         if (isPlainObject(obj)) { 
-            if (_.cache[path]) errorShadowValue(path);
-            else _.cache[path] = null; 
+            if (isLeaf(_.items[path])) errorShadowValue(path);
+            else _.items[path] = new SubRules(_); 
             for (let n in obj) cacheGenerators(_, combinePath(path, n), obj[n]);
-        } else if (_.cache[path] === null) errorShadowNamespace(path)
-        else if (obj instanceof Function) _.cache[path] = new Generator(obj, _, path);
-        else errorBadProd(path, obj);
+        } else if (_.items[path] instanceof SubRules) errorShadowNamespace(path)
+        else if (obj instanceof Function) _.items[path] = new Generator(obj, _, path);
+        else errorBadGenerator(path, obj);
     };
 
 // paths
@@ -105,9 +117,11 @@ let isPlainObject = (o : any) => o instanceof Object && getProto(o) === Object.p
     hasOwnProp = (o : any, name : string) => Object.prototype.hasOwnProperty.call(o, name);
 
 // errors
-let errorMissingRule = (path : string) => { throw new Error("missing dependency: " + path); },
-    errorBadProd = (path : string, prod : any) => { throw new Error("bad namespace spec: must consist of only plain objects or generator functions: " + path + ' = ' + prod); },
+let errorMissingTarget = (path : string) => { throw new Error("missing dependency: " + path); },
+    errorBadGenerator = (path : string, prod : any) => { throw new Error("bad namespace spec: must consist of only plain objects or generator functions: " + path + ' = ' + prod); },
     errorShadowValue = (path : string) => { throw new Error("cannot shadow a value with a namespace: " + path); },
     errorShadowNamespace = (path : string) => { throw new Error("cannot shadow a namespace with a value: " + path); };
 
-export default proxy(new Scope(0, Object.create(null), null), '', null);
+var root = new Cache(0, Object.create(null), null);
+
+export default proxy(root, '', null);;
