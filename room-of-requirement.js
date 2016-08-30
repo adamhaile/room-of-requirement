@@ -13,6 +13,7 @@
             this.depth = depth;
             this.items = items;
             this.parent = parent;
+            items[''] = new SubRules(this, '');
         }
     }
     class CacheItem {

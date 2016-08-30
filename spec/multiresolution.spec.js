@@ -71,4 +71,19 @@ describe("multiple resolution", function () {
         expect(deps.foo.bar).toEqual(1);
         expect(deps['foo[]'].length).toEqual(1);
     });
+
+    it("should return an array of root proxies for target '[]'", function () {
+        var deps = RoomOfRequirement({
+            foo: () => 1,
+        })({
+            foo: () => 2
+        })({
+            foo: () => 3
+        });
+
+        var stack = deps['[]'];
+        expect(stack[0].foo).toEqual(3);
+        expect(stack[1].foo).toEqual(2);
+        expect(stack[2].foo).toEqual(1);
+    });
 });

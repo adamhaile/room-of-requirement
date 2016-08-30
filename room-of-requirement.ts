@@ -3,7 +3,7 @@ class Cache {
         public depth : number,
         public items : { [path : string] : CacheItem | undefined }, // undefined = cache miss
         public parent : Cache | null
-    ) { }
+    ) { items[''] = new SubRules(this, ''); }
 }
 
 abstract class CacheItem {
