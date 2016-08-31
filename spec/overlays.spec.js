@@ -128,6 +128,17 @@ describe("overlays", function () {
         expect(deps.foo({ bar: () => 2 }).bar).toEqual(2);
     });
 
+
+    it("should use relative depedencies from a sub-namespaces", function () {
+        var deps = RoomOfRequirement({
+            foo: {
+                bar: () => 1
+            }
+        });
+
+        expect(deps.foo({ bleck: ({bar}) => bar }).bleck).toEqual(1);
+    });
+
     it("should work inside a resolution", function () {
         var deps = RoomOfRequirement({
             bar: ({foo}) => foo,
@@ -140,7 +151,7 @@ describe("overlays", function () {
     it("should account for new rules inside a resolution", function () {
         var deps1 = RoomOfRequirement({
                 bar: ({foo}) => foo,
-                withFoo: _ => foo => _({ foo: () => foo })
+                withFoo: ({_}) => foo => _({ foo: () => foo })
             }),
             deps2 = deps1({
                 bar: ({foo}) => foo * 2
