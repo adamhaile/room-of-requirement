@@ -17,8 +17,8 @@
         }
     }
     class CacheItem {
-        constructor(cache, path) {
-            this.cache = cache;
+        constructor(_, path) {
+            this.cache = _;
             this.path = path;
         }
     }
@@ -27,33 +27,36 @@
     class Leaf extends CacheItem {
     }
     class Generator extends Leaf {
-        constructor(cache, path, fn) {
-            super(cache, path);
+        constructor(_, path, fn) {
+            super(_, path);
             this.fn = fn;
         }
     }
     class Value extends Leaf {
-        constructor(cache, path, value) {
-            super(cache, path);
+        constructor(_, path, value) {
+            super(_, path);
             this.value = value;
         }
     }
     class Result extends Value {
-        constructor(cache, path, value, gen) {
-            super(cache, path, value);
+        constructor(_, path, value, gen) {
+            super(_, path, value);
             this.deps = []; // dependencies of this result, for determining validity
+            this.sealed = false;
             this.gen = gen;
         }
         invalid(_) { return _.items[this.path] !== this || this.deps.some(d => d.invalid(_)); }
         addDependency(dep) {
+            if (this.sealed)
+                return;
             if (this.cache.depth < dep.cache.depth)
                 this.cache = dep.cache;
             this.deps.push(dep);
         }
     }
     class Multi extends Value {
-        constructor(cache, path, value, target) {
-            super(cache, path, value);
+        constructor(_, path, value, target) {
+            super(_, path, value);
             this.target = target;
         }
         invalid(_) { var top = _.items[this.target]; return !!top && top.cache !== this.cache; }
@@ -79,6 +82,7 @@
     }, resolveGenerator = (_, path, gen) => {
         let result = new Result(gen.cache, path, undefined, gen);
         result.value = gen.fn(proxy(_, '', result));
+        result.sealed = true;
         return result;
     }, resolveMulti = (_, path) => {
         let target = path.substr(0, path.length - 2), result = new Multi(root, path, [], target);
@@ -98,8 +102,8 @@
                 errorShadowValue(path);
             else
                 _.items[path] = new SubRules(_, path);
-            for (let n in obj)
-                cacheGenerators(_, combinePath(path, n), obj[n]);
+            for (let name in obj)
+                cacheGenerators(_, combinePath(path, name), obj[name]);
         }
         else if (obj instanceof Function) {
             if (_.items[path] instanceof SubRules)

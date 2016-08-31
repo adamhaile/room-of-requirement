@@ -60,4 +60,18 @@ describe("cache", function () {
         expect(deps1.bar).toEqual(1);
         expect(deps2.bar).toEqual(2);
     });
+
+    it("should not invalidate cached result based on properties read after instantiation", function () {
+        var x = 0,
+            deps1 = RoomOfRequirement({
+                foo: () => 1,
+                bar: _ => () => _.foo
+            }),
+            deps2 = deps1({ 
+                foo : () => 2
+            });
+
+        expect(deps1.bar()).toEqual(1);
+        expect(deps2.bar()).toEqual(1);
+    });
 });

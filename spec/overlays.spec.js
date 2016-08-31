@@ -118,13 +118,36 @@ describe("overlays", function () {
         ).toThrowError(/shadow/);
     });
 
-    it("can be supplied for sub-namespaces", function () {
+    it("should work for sub-namespaces", function () {
         var deps = RoomOfRequirement({
             foo: {
                 bar: () => 1
             }
         });
 
-        expect(deps.foo({ bar: _ => 2 }).bar).toEqual(2);
+        expect(deps.foo({ bar: () => 2 }).bar).toEqual(2);
+    });
+
+    it("should work inside a resolution", function () {
+        var deps = RoomOfRequirement({
+            bar: ({foo}) => foo,
+            withFoo: _ => foo => _({ foo: () => foo })
+        });
+
+        expect(deps.withFoo(1).bar).toBe(1);
+    });
+
+    it("should account for new rules inside a resolution", function () {
+        var deps1 = RoomOfRequirement({
+                bar: ({foo}) => foo,
+                withFoo: _ => foo => _({ foo: () => foo })
+            }),
+            deps2 = deps1({
+                bar: ({foo}) => foo * 2
+            });
+
+        expect(deps1.withFoo(1).bar).toBe(1);
+        expect(deps2({ foo: () => 1 }).bar).toBe(2);
+        expect(deps2.withFoo(1).bar).toBe(2);
     });
 });
