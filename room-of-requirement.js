@@ -95,9 +95,11 @@
             for (let name in obj)
                 cacheGenerators(_, base, combinePath(path, name), obj[name]);
         }
-        else if (obj instanceof Function) {
+        else if (typeof obj !== 'object' && obj !== undefined || obj === null || obj instanceof Date) {
             if (_.items[path] instanceof Namespace)
                 errorShadowNamespace(path);
+            if (!(obj instanceof Function))
+                obj = (obj => () => obj)(obj);
             new Generator(_, path, obj, base);
         }
         else
@@ -105,7 +107,7 @@
     }, combinePath = (base, name) => (base ? base + '.' : '') + name.toString().replace('\\', '\\\\').replace('.', '\\.'), isMultiPath = (path) => path.substr(path.length - 2) === '[]';
     // errors
     let errorMissingTarget = (path) => { throw new Error("missing dependency: " + path); }, errorBadGenerator = (path, prod) => { throw new Error("bad namespace spec: must consist of only plain objects or generator functions: " + path + ' = ' + prod); }, errorShadowTarget = (path) => { throw new Error("cannot shadow a target with a namespace: " + path); }, errorShadowNamespace = (path) => { throw new Error("cannot shadow a namespace with a target: " + path); };
-    var root = new Cache(0, Object.create(null), null);
+    let root = new Cache(0, Object.create(null), null);
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.default = proxy(root, '', null);
 });

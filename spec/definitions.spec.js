@@ -79,4 +79,52 @@ describe("definitions", function () {
             deps.foo
         ).toThrowError(/toString/);
     });
+
+    it("should allow numbers as definitions", function () {
+        var deps = RoomOfRequirement({
+            foo: 1
+        });
+
+        expect(deps.foo).toBe(1);
+    });
+
+    it("should allow strings as definitions", function () {
+        var deps = RoomOfRequirement({
+            foo: "foo"
+        });
+
+        expect(deps.foo).toBe("foo");
+    });
+
+    it("should allow booleans as definitions", function () {
+        var deps = RoomOfRequirement({
+            foo: true
+        });
+
+        expect(deps.foo).toBe(true);
+    });
+
+    it("should allow null as a definition", function () {
+        var deps = RoomOfRequirement({
+            foo: null
+        });
+
+        expect(deps.foo).toBe(null);
+    });
+
+    it("should allow Dates as definitions", function () {
+        var deps = RoomOfRequirement({
+            foo: new Date(0)
+        });
+
+        expect(deps.foo).toEqual(new Date(0));
+    });
+
+    it("should not allow undefined as a definition", function () { // or should it?
+        expect(() =>
+            RoomOfRequirement({
+                foo: undefined
+            })
+        ).toThrowError(/bad namespace spec/);
+    });
 })

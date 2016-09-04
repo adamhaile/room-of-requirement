@@ -78,12 +78,13 @@ let proxy = (_ : Cache, base : string, instances : { [path : string] : Instance 
         return proxy(_, path, null);
     },
     cacheGenerators = (_ : Cache, base : string, path : string, obj : any) => {
-        if (obj instanceof Object && Object.getPrototypeOf(obj) === Object.prototype) { 
+        if (obj instanceof Object && Object.getPrototypeOf(obj) === Object.prototype) {
             if (_.items[path] instanceof Target) errorShadowTarget(path);
             new Namespace(_, path); 
             for (let name in obj) cacheGenerators(_, base, combinePath(path, name), obj[name]);
-        } else if (obj instanceof Function) {
+        } else if (typeof obj !== 'object' && obj !== undefined || obj === null || obj instanceof Date) {
             if (_.items[path] instanceof Namespace) errorShadowNamespace(path);
+            if (!(obj instanceof Function)) obj = (obj => () => obj)(obj);
             new Generator(_, path, obj, base);
         } else errorBadGenerator(path, obj);
     },
@@ -97,6 +98,6 @@ let errorMissingTarget = (path : string) => { throw new Error("missing dependenc
     errorShadowTarget = (path : string) => { throw new Error("cannot shadow a target with a namespace: " + path); },
     errorShadowNamespace = (path : string) => { throw new Error("cannot shadow a namespace with a target: " + path); };
 
-var root = new Cache(0, Object.create(null), null);
+let root = new Cache(0, Object.create(null), null);
 
 export default proxy(root, '', null);
