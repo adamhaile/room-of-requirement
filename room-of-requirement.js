@@ -43,8 +43,8 @@
         }
     }
     class Result extends Instance {
-        constructor(path, value, gen, deps) {
-            super(deps.reduce((_, d) => _.depth < d.cache.depth ? d.cache : _, gen.cache), path, value);
+        constructor(_, path, value, gen, deps) {
+            super(deps.reduce((_, d) => _.depth < d.cache.depth ? d.cache : _, _), path, value);
             this.gen = gen;
             this.deps = deps;
         }
@@ -75,7 +75,7 @@
         return resolved;
     }, resolveGenerator = (_, path, gen) => {
         let instances = {}, value = gen.fn(proxy(_, gen.base, instances)), deps = Object.keys(instances).map(p => instances[p]);
-        return new Result(path, value, gen, deps);
+        return new Result(gen.cache, path, value, gen, deps);
         ;
     }, resolveMulti = (_, path) => {
         let target = path.substr(0, path.length - 2), nodes = [];
@@ -95,18 +95,17 @@
             for (let name in obj)
                 cacheGenerators(_, base, combinePath(path, name), obj[name]);
         }
-        else if (typeof obj !== 'object' && obj !== undefined || obj === null || obj instanceof Date) {
+        else {
             if (_.items[path] instanceof Namespace)
                 errorShadowNamespace(path);
-            if (!(obj instanceof Function))
-                obj = (obj => () => obj)(obj);
-            new Generator(_, path, obj, base);
+            if (obj instanceof Function)
+                new Generator(_, path, obj, base);
+            else
+                new Result(_, path, obj, null, []);
         }
-        else
-            errorBadGenerator(path, obj);
     }, combinePath = (base, name) => (base ? base + '.' : '') + name.toString().replace('\\', '\\\\').replace('.', '\\.'), isMultiPath = (path) => path.substr(path.length - 2) === '[]';
     // errors
-    let errorMissingTarget = (path) => { throw new Error("missing dependency: " + path); }, errorBadGenerator = (path, prod) => { throw new Error("bad namespace spec: must consist of only plain objects or generator functions: " + path + ' = ' + prod); }, errorShadowTarget = (path) => { throw new Error("cannot shadow a target with a namespace: " + path); }, errorShadowNamespace = (path) => { throw new Error("cannot shadow a namespace with a target: " + path); };
+    let errorMissingTarget = (path) => { throw new Error("missing dependency: " + path); }, errorShadowTarget = (path) => { throw new Error("cannot shadow a target with a namespace: " + path); }, errorShadowNamespace = (path) => { throw new Error("cannot shadow a namespace with a target: " + path); };
     let root = new Cache(0, Object.create(null), null);
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.default = proxy(root, '', null);

@@ -119,12 +119,4 @@ describe("definitions", function () {
 
         expect(deps.foo).toEqual(new Date(0));
     });
-
-    it("should not allow undefined as a definition", function () { // or should it?
-        expect(() =>
-            RoomOfRequirement({
-                foo: undefined
-            })
-        ).toThrowError(/bad namespace spec/);
-    });
 })

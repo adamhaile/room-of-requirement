@@ -24,8 +24,8 @@ abstract class Instance extends Target {
 }
 
 class Result extends Instance {
-    constructor(path : string, value : any, public gen : Generator, public deps : Instance[]) { 
-        super(deps.reduce((_, d) => _.depth < d.cache.depth ? d.cache : _, gen.cache), path, value); 
+    constructor(_ : Cache, path : string, value : any, public gen : Generator | null, public deps : Instance[]) { 
+        super(deps.reduce((_, d) => _.depth < d.cache.depth ? d.cache : _, _), path, value); 
     }
     invalid(_ : Cache) { return _.items[this.path] !== this || this.deps.some(d => d.invalid(_)); }
 }
@@ -47,7 +47,7 @@ let proxy = (_ : Cache, base : string, instances : { [path : string] : Instance 
     },
     resolve = (_ : Cache, path : string) : Instance | Namespace | undefined => {
         var cached   = _.items[path],
-            valid    = cached instanceof Result && cached.invalid(_) ? cached.gen :
+            valid    = cached instanceof Result && cached.invalid(_) ? cached.gen! :
                        cached instanceof Multi  && cached.invalid(_) ? undefined :
                        cached,
             resolved = valid instanceof Generator                    ? resolveGenerator(_, path, valid) :
@@ -59,7 +59,7 @@ let proxy = (_ : Cache, base : string, instances : { [path : string] : Instance 
         let instances = {} as { [path : string] : Instance }, 
             value = gen.fn(proxy(_, gen.base, instances)),
             deps = Object.keys(instances).map(p => instances[p]);
-        return new Result(path, value, gen, deps);;
+        return new Result(gen.cache, path, value, gen, deps);;
     },
     resolveMulti = (_ : Cache, path : string) => {
         let target = path.substr(0, path.length - 2),
@@ -82,11 +82,11 @@ let proxy = (_ : Cache, base : string, instances : { [path : string] : Instance 
             if (_.items[path] instanceof Target) errorShadowTarget(path);
             new Namespace(_, path); 
             for (let name in obj) cacheGenerators(_, base, combinePath(path, name), obj[name]);
-        } else if (typeof obj !== 'object' && obj !== undefined || obj === null || obj instanceof Date) {
+        } else {
             if (_.items[path] instanceof Namespace) errorShadowNamespace(path);
-            if (!(obj instanceof Function)) obj = (obj => () => obj)(obj);
-            new Generator(_, path, obj, base);
-        } else errorBadGenerator(path, obj);
+            if (obj instanceof Function) new Generator(_, path, obj, base);
+            else new Result(_, path, obj, null, []);
+        } 
     },
     combinePath = (base : string, name : string | number | symbol) => 
         (base ? base + '.' : '') + name.toString().replace('\\', '\\\\').replace('.', '\\.'),
@@ -94,7 +94,6 @@ let proxy = (_ : Cache, base : string, instances : { [path : string] : Instance 
 
 // errors
 let errorMissingTarget = (path : string) => { throw new Error("missing dependency: " + path); },
-    errorBadGenerator = (path : string, prod : any) => { throw new Error("bad namespace spec: must consist of only plain objects or generator functions: " + path + ' = ' + prod); },
     errorShadowTarget = (path : string) => { throw new Error("cannot shadow a target with a namespace: " + path); },
     errorShadowNamespace = (path : string) => { throw new Error("cannot shadow a namespace with a target: " + path); };
 
