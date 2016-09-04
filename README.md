@@ -40,7 +40,7 @@ deps.view === deps.view;
 deps.router; // THROWS missing dependency: router
 
 // extend dependencies by passing in new rules
-// this makes a new Proxy that has all the old rules plus the new
+// this makes a new cache that has all the old rules plus the new
 
 let extDeps = deps({
     router: ({app}) => new Router(app);
@@ -77,13 +77,31 @@ deps = deps({
 
 deps.user; // THROWS missing dependency: userId
 
-// which can be supplied later
+// which can be supplied later 
 
 deps = deps({
-    userId: () => 2
+    userId: 2
 });
 
+deps.user instanceof User;
 deps.user.id === 2;
+
+// note: constant values can be supplied directly, as above,
+// so long as they aren't functions or object literals
+
+// rules can request the whole cache and pull properties later
+
+deps = deps({
+    user: _ => new User(_.userId) // equivalent to user rule above
+});
+
+// rules can extend the cache to create "factories"
+
+deps = deps({
+    userFactory: _ => userId => _({userId}).user
+});
+
+deps.userFactory(5).id === 5;
 
 // finally, the target namespace is heirarchical
 
@@ -94,11 +112,24 @@ deps = deps({
     }
 });
 
-deps.controllers.account.Run();
+deps.controllers.account instanceof AccountController;
+
+// and heirarchical overlays are merged
+
+deps = deps({
+    controllers: {
+        homepage: ({user}) => new HomepageController(user)
+    }
+});
+
+deps.controllers.homepage instanceof HomepageController;
+deps.controllers.account instanceof AccountController;
 
 ```
 
 ## Possible Future Ideas
+
+ES5 support using Object.defineProperty().  Wouldn't allow us to throw on missing dependencies but would otherwise work.
 
 Some way to apply a monad to dependencies, to enable things like clean Promise-based async resolutions.
 
