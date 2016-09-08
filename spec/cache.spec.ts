@@ -1,9 +1,9 @@
-var RoomOfRequirement = require('../room-of-requirement').default;
+import { root } from '../room-of-requirement';
 
 describe("cache", function () {    
     it("should not evaluate result until requested", function () {
         var x = 0,
-            deps = RoomOfRequirement({
+            deps = root<{ foo : number }>({
                 foo: () => ++x,
             });
 
@@ -14,7 +14,7 @@ describe("cache", function () {
 
     it("should cache result with subsequent resolutions", function () {
         var x = 0,
-            deps = RoomOfRequirement({
+            deps = root<{ foo : number }>({
                 foo: () => ++x
             });
 
@@ -24,7 +24,7 @@ describe("cache", function () {
 
     it("should cache result during the same resolution", function () {
         var x = 0,
-            deps = RoomOfRequirement({
+            deps = root<{ foo : number, bar1 : number, bar2 : number, bleck: number[] }>({
                 foo: () => ++x,
                 bar1: ({foo}) => foo,
                 bar2: ({foo}) => foo,
@@ -36,10 +36,10 @@ describe("cache", function () {
 
     it("should cache result at most general validity", function () {
         var x = 0,
-            deps1 = RoomOfRequirement({
+            deps1 = root<{ foo : number }>({
                 foo: () => ++x
             }),
-            deps2 = deps1({
+            deps2 = deps1<{ bar : number }>({
                 bar: () => 2
             });
 
@@ -49,7 +49,7 @@ describe("cache", function () {
 
     it("should invalidate cached result when it is affected by a new definition", function () {
         var x = 0,
-            deps1 = RoomOfRequirement({
+            deps1 = root<{ foo : number, bar : number }>({
                 foo: () => 1,
                 bar: ({foo}) => ++x
             }),
@@ -63,7 +63,7 @@ describe("cache", function () {
 
     it("should not invalidate cached result based on properties read after instantiation", function () {
         var x = 0,
-            deps1 = RoomOfRequirement({
+            deps1 = root<{ foo : number, bar : () => number }>({
                 foo: () => 1,
                 bar: _ => () => _.foo
             }),

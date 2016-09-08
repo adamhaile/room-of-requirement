@@ -25,6 +25,7 @@
   },
   "homepage": "https://github.com/curveship/room-of-requirement#readme",
   "devDependencies": {
+    "@types/jasmine": "^2.2.33",
     "bluebird": "^3.4.1",
     "jasmine": "^2.4.1"
   }

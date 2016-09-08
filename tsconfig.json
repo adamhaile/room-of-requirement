@@ -1,9 +1,10 @@
 {
     "compilerOptions": {
         "target": "es6",
-        "module": "umd",
+        "module": "commonjs",
         "noImplicitAny": true,
         "strictNullChecks": true,
-        "sourceMap": true
+        "sourceMap": true,
+        "outDir": "./dist"
     }
 }
